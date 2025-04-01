@@ -2,6 +2,10 @@ import streamlit as st
 
 def show_home_page():
     """Display the home page with introduction and features"""
+    # Initialize first_visit in session state if not present
+    if "first_visit" not in st.session_state:
+        st.session_state.first_visit = True
+        
     st.title("🎓 Welcome to EduAI Assistant")
     
     # Introduction

@@ -1,0 +1,113 @@
+# AI Teacher Assistant Platform
+
+## Project Overview
+This is a comprehensive educational platform built using Streamlit and Google's Gemini AI that serves as an intelligent teaching assistant. The application helps teachers grade assignments, generate questions, analyze student performance, and interact with an AI teaching assistant.
+
+## Key Features
+1. **Assignment Processing**
+   - PDF upload and text extraction capability
+   - Supports multi-page document processing
+   - Uses PyMuPDF for PDF handling
+
+2. **Automated Grading System**
+   - AI-powered assignment evaluation
+   - Subject-specific grading
+   - Detailed feedback generation including:
+     - Letter grades and percentage scores
+     - Strengths and weaknesses analysis
+     - Improvement suggestions
+     - Related concepts review
+     - Real-world applications
+
+3. **Student Performance Analysis**
+   - Visual performance tracking
+   - Grade history monitoring
+   - Trend analysis with charts
+   - Detailed feedback review
+
+4. **AI Question Bank Generator**
+   - Custom question generation
+   - Multiple subject support
+   - Difficulty level selection
+   - Various question type options
+   - Export capabilities (PDF, CSV, JSON)
+
+5. **Teacher Chat Assistant**
+   - Interactive AI chat interface
+   - Educational query support
+   - Teaching methodology assistance
+   - Assessment guidance
+
+## Technical Stack
+- **Frontend**: Streamlit
+- **AI Model**: Google Gemini 2.0 (using google-genai SDK)
+- **PDF Processing**: PyMuPDF (fitz)
+- **Image Processing**: Pillow
+- **Data Handling**: Pandas, JSON
+- **Visualization**: Matplotlib
+- **Document Generation**: FPDF
+- **Environment Management**: python-dotenv
+
+## Project Structure
+- `app.py`: Main application file with Streamlit interface
+- `pdf_to_text.py`: PDF processing and text extraction
+- `config.py`: Configuration and environment setup
+- `requirements.txt`: Project dependencies
+- `.env`: Environment variables (API keys)
+
+## Implementation Details
+1. **PDF Processing Pipeline**
+   - Converts PDF pages to high-resolution images
+   - Uses Gemini AI for text extraction
+   - Maintains formatting and structure
+
+2. **Grading System**
+   - Implements structured JSON response format
+   - Uses Gemini 2.0 Flash model for quick responses
+   - Provides comprehensive feedback categories
+
+3. **Data Visualization**
+   - Real-time performance tracking
+   - Interactive charts and metrics
+   - Historical data analysis
+
+4. **Export Functionality**
+   - Multiple format support
+   - Structured data organization
+   - Professional document formatting
+
+## Security Features
+- Environment variable-based API key management
+- Secure file handling
+- Temporary file cleanup
+
+## Dependencies
+- streamlit
+- PyMuPDF
+- Pillow
+- google-generativeai
+- python-dotenv
+- google-genai
+- pandas
+- matplotlib
+- fpdf
+
+## Setup Instructions
+1. Install required packages: `pip install -r requirements.txt`
+2. Set up Gemini API key in `.env` file
+3. Run application: `streamlit run app.py`
+
+## Development Considerations
+- Modular code structure
+- Error handling implementation
+- Performance optimization
+- User experience focus
+
+## Future Enhancements
+1. Additional export formats
+2. Enhanced analytics
+3. Batch processing capability
+4. Integration with LMS systems
+5. Multiple language support
+
+This project demonstrates the practical application of AI in education, combining modern technology with traditional teaching methods to create an efficient and effective teaching assistant tool.

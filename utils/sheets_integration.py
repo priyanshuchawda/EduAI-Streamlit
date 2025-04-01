@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Dict, List, Any
 import os
 import json
-from datetime import datetime
+from datetime import datetime, date
 import os.path
 
 def get_google_sheets_client():
@@ -17,7 +17,7 @@ def get_google_sheets_client():
     try:
         # Get path to credentials file in the same directory as app.py
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        credentials_path = os.path.join(current_dir, 'credentials.json')
+        credentials_path = os.path.join(current_dir, 'credentials1.json')  # Changed to credentials1.json
         
         if not os.path.exists(credentials_path):
             raise Exception(f"Credentials file not found at {credentials_path}")
@@ -58,6 +58,77 @@ def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:
         
     except Exception as e:
         raise Exception(f"Error accessing Google Sheets: {str(e)}")
+
+def get_syllabus_sheet() -> gspread.Worksheet:
+    """Get or create the syllabus worksheet"""
+    try:
+        client = get_google_sheets_client()
+        spreadsheet = client.open_by_key('1XsVFDulZvVm48TufEaVoNMkEj6-wA583lIuQz5odDiM')
+        
+        try:
+            worksheet = spreadsheet.worksheet('Syllabus')
+        except gspread.WorksheetNotFound:
+            # Create Syllabus worksheet if it doesn't exist
+            worksheet = spreadsheet.add_worksheet(
+                title='Syllabus',
+                rows=1000,
+                cols=6
+            )
+            # Set up headers
+            headers = ['Topic', 'Duration', 'Subject', 'Planned Date', 'Status', 'Last Updated']
+            worksheet.update('A1:F1', [headers])
+        
+        return worksheet
+    except Exception as e:
+        raise Exception(f"Error accessing Google Sheets: {str(e)}")
+
+def get_syllabus_data() -> pd.DataFrame:
+    """Get all syllabus data as a pandas DataFrame"""
+    try:
+        worksheet = get_syllabus_sheet()
+        records = worksheet.get_all_records()
+        if not records:
+            return pd.DataFrame(columns=['Topic', 'Duration', 'Subject', 'Planned Date', 'Status', 'Last Updated'])
+        df = pd.DataFrame(records)
+        return df
+    except Exception as e:
+        raise Exception(f"Error retrieving syllabus data: {str(e)}")
+
+def save_syllabus_topic(
+    topic: str, 
+    duration: int, 
+    subject: str, 
+    planned_date: date,
+    status: str = "Not Started",
+    update: bool = False
+) -> bool:
+    """Save or update a syllabus topic"""
+    try:
+        worksheet = get_syllabus_sheet()
+        
+        # Format data
+        row_data = [
+            topic,
+            duration,
+            subject,
+            planned_date.strftime('%Y-%m-%d'),
+            status,
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        ]
+        
+        if update:
+            # Find the row with matching topic and update it
+            cell = worksheet.find(topic)
+            if cell:
+                worksheet.update(f'A{cell.row}:F{cell.row}', [row_data])
+        else:
+            # Append new row
+            worksheet.append_row(row_data)
+            
+        return True
+        
+    except Exception as e:
+        raise Exception(f"Error saving syllabus topic: {str(e)}")
 
 def save_student_analysis(
     student_name: str,

@@ -23,6 +23,7 @@ from src.components.upload import show_upload_page
 from src.components.analysis import show_analysis_page
 from src.components.calendar import show_calendar_sidebar
 from src.components.calendar_page import show_calendar_page
+from src.components.syllabus import show_syllabus_page
 
 # Import utilities
 from utils.ai_grading import grade_assignment
@@ -117,7 +118,7 @@ show_calendar_sidebar()
 st.sidebar.title("🎓 EduAI Assistant")
 page = st.sidebar.radio(
     "Navigate to:",
-    ["Home", "Assignment Upload", "Grading", "Analysis", "Calendar", "Teacher Chat"]
+    ["Home", "Assignment Upload", "Grading", "Analysis", "Calendar", "Syllabus", "Teacher Chat"]
 )
 
 # Route to appropriate page based on navigation
@@ -131,5 +132,7 @@ elif page == "Analysis":
     show_analysis_page()
 elif page == "Calendar":
     show_calendar_page()
+elif page == "Syllabus":
+    show_syllabus_page()
 elif page == "Teacher Chat":
     show_teacher_chat()

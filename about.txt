@@ -38,6 +38,22 @@ This is a comprehensive educational platform built using Streamlit and Google's 
    - Teaching methodology assistance
    - Assessment guidance
 
+6. **Calendar & Scheduling System**
+   - Google Calendar integration
+   - AI-powered lesson scheduling
+   - Recurring schedule support
+   - Topic distribution planning
+   - Schedule conflict detection
+   - Visual calendar interface
+
+7. **Syllabus Management**
+   - Topic tracking and organization
+   - Progress monitoring
+   - AI-suggested topic distribution
+   - Smart scheduling recommendations
+   - Subject-specific planning
+   - Real-time progress tracking
+
 ## Technical Stack
 - **Frontend**: Streamlit
 - **AI Model**: Google Gemini 2.0 (using google-genai SDK)
@@ -76,6 +92,20 @@ This is a comprehensive educational platform built using Streamlit and Google's 
    - Structured data organization
    - Professional document formatting
 
+5. **Calendar Integration**
+   - Google Calendar API integration
+   - Event scheduling and management
+   - Timezone handling
+   - Conflict resolution
+   - Recurring schedule support
+
+6. **AI Scheduling System**
+   - Smart topic distribution
+   - Time slot optimization
+   - Subject-aware planning
+   - Progress-based recommendations
+   - Dynamic schedule adjustments
+
 ## Security Features
 - Environment variable-based API key management
 - Secure file handling
@@ -109,5 +139,10 @@ This is a comprehensive educational platform built using Streamlit and Google's 
 3. Batch processing capability
 4. Integration with LMS systems
 5. Multiple language support
+6. Advanced calendar features
+7. Multi-teacher support
+8. Parent-teacher communication portal
+9. Real-time collaboration tools
+10. Mobile application development
 
 This project demonstrates the practical application of AI in education, combining modern technology with traditional teaching methods to create an efficient and effective teaching assistant tool.

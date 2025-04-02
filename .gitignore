@@ -48,3 +48,12 @@ venv.bak/
 .vscode/
 credentials.json
 credentials1.json
+token.pickle
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.log
+*.csv
+*.tsv
+*.json

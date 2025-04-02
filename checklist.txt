@@ -18,30 +18,30 @@ Phase	Task
 16	✅ Build chat UI for teacher doubts
 17	✅ Create prompt for Question Bank Generator
 18	✅ Build UI to input topic → generate questions + solutions via Gemini
-19	⏳ Integrate option to analyze PYQs (past year questions) → generate based on pattern
+19	✅ Integrate option to analyze PYQs (past year questions) → generate based on pattern
 20	✅ Test all Gemini features + refine prompts
 📊 Milestone 3: Data Storage + Analysis (Phases 21–30)
 Phase	Task
-21	⏳ Setup local SQLite DB
-22	⏳ Design DB schema: Users, Assignments, Feedback, Performance, Questions
-23	⏳ Connect backend to DB
-24	⏳ Store student assignments, grades, and feedback
+21	✅ Setup local SQLite DB
+22	✅ Design DB schema: Users, Assignments, Feedback, Performance, Questions
+23	✅ Connect backend to DB
+24	✅ Store student assignments, grades, and feedback
 25	✅ Create performance history dashboard
-26	⏳ Add syllabus tracker module (teachers input syllabus topics)
-27	⏳ Add progress bar (how much syllabus done vs left)
-28	⏳ Add time tracking (suggest daily target for syllabus completion)
-29	⏳ Add AI suggestion: if delay, auto-prioritize remaining topics
-30	⏳ UI: Show syllabus completion dashboard
+26	✅ Add syllabus tracker module (teachers input syllabus topics)
+27	✅ Add progress bar (how much syllabus done vs left)
+28	✅ Add time tracking (suggest daily target for syllabus completion)
+29	✅ Add AI suggestion: if delay, auto-prioritize remaining topics
+30	✅ UI: Show syllabus completion dashboard
 🔐 Milestone 4: Extra Features + Automation (Phases 31–40)
 Phase	Task
-31	⏳ Add AI plagiarism checker (use Gemini or basic comparison method)
-32	⏳ Add Exam Score Predictor (based on past grades → predicted performance)
-33	⏳ Add multilingual support (Google Translate API) for feedback
+31	✅ Add AI plagiarism checker (use Gemini or basic comparison method)
+32	✅ Add Exam Score Predictor (based on past grades → predicted performance)
+33	✅ Add multilingual support (Google Translate API) for feedback
 34	✅ Add export reports (PDF) for teacher + parent reports
-35	⏳ Add Parent Report Summary Generator
-36	⏳ Add AI Teacher Analytics Dashboard
-37	⏳ Track total time saved by AI (for teacher productivity insight)
-38	⏳ Prepare future scope list (features for post-hackathon)
+35	✅ Add Parent Report Summary Generator
+36	✅ Add AI Teacher Analytics Dashboard
+37	✅ Track total time saved by AI (for teacher productivity insight)
+38	✅ Prepare future scope list (features for post-hackathon)
 39	✅ Clean UI + add branding (colors, fonts, smooth layout)
 40	✅ Collect sample data (for testing + demo)
 🚀 Milestone 5: MVP Launch + Demo Ready (Phases 41–47)

@@ -79,154 +79,200 @@ def create_skill_radar_chart(skills_data: Dict[str, list]) -> go.Figure:
 
 def display_grading_feedback(feedback: Dict[str, Any]):
     """Display comprehensive grading feedback"""
+    if not feedback:
+        st.error("No grading feedback available")
+        return
+
+    # Store the feedback in session state for persistence
+    st.session_state.last_feedback = feedback
+        
     st.title("Assignment Grading Analysis")
     
-    # Top-level metrics in a neat row
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Grade", feedback.get('grade', 'N/A'))
-    with col2:
-        st.metric("Score", f"{feedback.get('percentage', '0')}%")
-    with col3:
-        total_questions = len(feedback.get('questions', []))
-        st.metric("Questions", str(total_questions))
-
-    # Teacher's Original Notes section (before summary)
-    if 'original_notes' in feedback:
-        with st.expander("📓 Teacher's Original Notes", expanded=True):
-            notes = feedback['original_notes']
-            
-            # Teacher comments section
-            if notes.get('teacher_comments'):
-                st.markdown("### 👨‍🏫 Teacher Comments")
-                for comment in notes['teacher_comments']:
-                    st.success(f"💭 {comment}")
-            
-            # Margin notes section
-            if notes.get('margin_notes'):
-                st.markdown("### 📝 Margin Notes")
-                for note in notes['margin_notes']:
-                    st.info(f"✏️ {note}")
-            
-            # Corrections section
-            if notes.get('corrections'):
-                st.markdown("### ✍️ Corrections")
-                for correction in notes['corrections']:
-                    st.warning(f"📌 {correction}")
-
-    # Executive Summary
-    st.header("Executive Summary")
-    st.markdown(format_explanation_text(feedback.get('summary', 'No summary available')))
-
-    # Skills Analysis with Radar Chart
-    st.header("Skills Analysis")
-    if 'skills_analysis' in feedback:
-        # Display radar chart
-        fig = create_skill_radar_chart(feedback['skills_analysis'])
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Detailed skills breakdown
-        cols = st.columns(3)
-        with cols[0]:
-            st.subheader("✨ Mastered")
-            for skill in feedback['skills_analysis'].get('mastered', []):
-                st.success(f"• {skill}")
-        
-        with cols[1]:
-            st.subheader("🔄 Developing")
-            for skill in feedback['skills_analysis'].get('developing', []):
-                st.info(f"• {skill}")
-        
-        with cols[2]:
-            st.subheader("🎯 Need Work")
-            for skill in feedback['skills_analysis'].get('needs_work', []):
-                st.warning(f"• {skill}")
-
-    # Detailed Question Analysis
-    st.header("Question-by-Question Analysis")
-    if 'questions' in feedback:
-        # Create tabs for each question
-        question_tabs = st.tabs([f"Question {idx+1}" for idx in range(len(feedback['questions']))])
-        
-        for idx, (tab, question) in enumerate(zip(question_tabs, feedback['questions'])):
-            with tab:
-                # Question content
-                st.markdown(f"### Question {idx+1}")
-                st.markdown("**Question Text:**")
-                st.write(format_math_text(question.get('question_text', 'Question text not available')))
+    try:
+        # Top-level metrics in a neat row
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            # Treat empty string as None
+            grade = feedback.get('grade')
+            if grade and grade.strip() and grade != 'N/A':
+                st.metric("Grade", grade)
+            else:
+                st.metric("Grade", "N/A")
                 
-                # Student's answer
-                st.markdown("**Student's Response:**")
-                st.markdown('```\n' + format_math_text(question.get('student_answer', 'Answer not available')) + '\n```')
+        with col2:
+            percentage = feedback.get('percentage', '0')
+            # Clean up percentage format
+            if isinstance(percentage, (int, float)):
+                percentage = f"{percentage}%"
+            elif not str(percentage).endswith('%'):
+                percentage = f"{percentage}%"
+            st.metric("Score", percentage)
                 
-                # Evaluation details
-                st.markdown("---")
-                eval_col1, eval_col2 = st.columns(2)
-                with eval_col1:
-                    st.markdown("**Evaluation:**")
-                    correctness = question.get('evaluation', {}).get('correctness', 'not evaluated')
-                    score = question.get('evaluation', {}).get('score', 'N/A')
-                    
-                    if correctness == 'correct':
-                        st.success(f"✓ Status: {correctness.title()}\n📊 Score: {score}")
-                    elif correctness == 'partial':
-                        st.warning(f"⚠️ Status: {correctness.title()}\n📊 Score: {score}")
+        with col3:
+            questions = feedback.get('questions', [])
+            total_questions = len(questions) if questions else 0
+            st.metric("Questions", str(total_questions))
+
+        # Executive Summary
+        st.header("Executive Summary")
+        summary = feedback.get('summary')
+        if summary and summary.strip() and summary != 'Unable to process assignment':
+            st.markdown(format_explanation_text(summary))
+        else:
+            st.warning("Summary not available")
+
+        # Skills Analysis
+        st.header("Skills Analysis")
+        if 'skills_analysis' in feedback and any(feedback['skills_analysis'].values()):
+            # Create radar chart if there are skills
+            fig = create_skill_radar_chart(feedback['skills_analysis'])
+            st.plotly_chart(fig, use_container_width=True)
+            
+            cols = st.columns(3)
+            with cols[0]:
+                st.subheader("✨ Mastered")
+                mastered = feedback['skills_analysis'].get('mastered', [])
+                if mastered:
+                    for skill in mastered:
+                        st.success(f"• {skill}")
+                else:
+                    st.info("No mastered skills identified yet")
+            
+            with cols[1]:
+                st.subheader("🔄 Developing")
+                developing = feedback['skills_analysis'].get('developing', [])
+                if developing:
+                    for skill in developing:
+                        st.info(f"• {skill}")
+                else:
+                    st.info("No developing skills identified")
+            
+            with cols[2]:
+                st.subheader("🎯 Need Work")
+                needs_work = feedback['skills_analysis'].get('needs_work', [])
+                if needs_work:
+                    for skill in needs_work:
+                        st.warning(f"• {skill}")
+                else:
+                    st.info("No skills needing work identified")
+        else:
+            st.info("Skills analysis not available for this assignment")
+
+        # Question-by-Question Analysis
+        st.header("Question-by-Question Analysis")
+        questions = feedback.get('questions', [])
+        if questions and len(questions) > 0:
+            for idx, question in enumerate(questions):
+                with st.expander(f"Question {idx + 1}", expanded=idx == 0):
+                    # Question content
+                    st.markdown("**Question Text:**")
+                    question_text = question.get('question_text', '')
+                    if question_text and question_text != 'Unable to extract question':
+                        st.write(format_math_text(question_text))
                     else:
-                        st.error(f"✗ Status: {correctness.title()}\n📊 Score: {score}")
-                
-                with eval_col2:
-                    st.markdown("**Explanation:**")
-                    explanation = question.get('evaluation', {}).get('explanation', 'No explanation provided')
-                    st.markdown(format_explanation_text(explanation))
-                
-                # Feedback section
-                st.markdown("---")
-                st.markdown("**Detailed Feedback**")
-                feedback_cols = st.columns(2)
-                with feedback_cols[0]:
-                    st.markdown("*Strengths:*")
-                    for strength in question.get('feedback', {}).get('strengths', []):
-                        st.success(f"✓ {strength}")
-                
-                with feedback_cols[1]:
-                    st.markdown("*Areas for Improvement:*")
-                    for improvement in question.get('feedback', {}).get('improvements', []):
-                        st.warning(f"• {improvement}")
-                
-                # Solution - formatted in a code block with proper spacing
-                st.markdown("---")
-                st.markdown("**📝 Correct Solution:**")
-                solution = question.get('feedback', {}).get('solution', 'Solution not provided')
-                # Format the solution with proper spacing and LaTeX
-                formatted_solution = format_math_text(format_explanation_text(solution))
-                st.markdown(formatted_solution)
+                        st.warning("Question text not available")
+                    
+                    # Student's answer
+                    st.markdown("**Student's Response:**")
+                    answer = question.get('student_answer', '')
+                    if answer and answer != 'Unable to extract answer':
+                        st.markdown('```\n' + format_math_text(answer) + '\n```')
+                    else:
+                        st.warning("Student answer not available")
+                    
+                    # Evaluation details
+                    st.markdown("---")
+                    eval_col1, eval_col2 = st.columns(2)
+                    with eval_col1:
+                        st.markdown("**Evaluation:**")
+                        evaluation = question.get('evaluation', {})
+                        correctness = evaluation.get('correctness', '')
+                        score = evaluation.get('score', '')
+                        
+                        if correctness and correctness != 'N/A':
+                            status_icon = "✓" if correctness == "correct" else "⚠️" if correctness == "partial" else "✗"
+                            if correctness == "correct":
+                                st.success(f"{status_icon} Status: {correctness.title()}\n📊 Score: {score}")
+                            elif correctness == "partial":
+                                st.warning(f"{status_icon} Status: {correctness.title()}\n📊 Score: {score}")
+                            else:
+                                st.error(f"{status_icon} Status: {correctness.title()}\n📊 Score: {score}")
+                        else:
+                            st.warning("Evaluation not available")
+                    
+                    with eval_col2:
+                        st.markdown("**Explanation:**")
+                        explanation = evaluation.get('explanation', '')
+                        if explanation and explanation != 'Unable to evaluate':
+                            st.markdown(format_explanation_text(explanation))
+                        else:
+                            st.warning("Explanation not available")
+                    
+                    # Feedback section
+                    if 'feedback' in question:
+                        st.markdown("---")
+                        st.markdown("**Detailed Feedback**")
+                        feedback_cols = st.columns(2)
+                        with feedback_cols[0]:
+                            st.markdown("*Strengths:*")
+                            strengths = question['feedback'].get('strengths', [])
+                            if strengths:
+                                for strength in strengths:
+                                    st.success(f"✓ {strength}")
+                            else:
+                                st.info("No specific strengths highlighted")
+                        
+                        with feedback_cols[1]:
+                            st.markdown("*Areas for Improvement:*")
+                            improvements = question['feedback'].get('improvements', [])
+                            if improvements:
+                                for improvement in improvements:
+                                    st.warning(f"• {improvement}")
+                            else:
+                                st.info("No specific improvements suggested")
+                        
+                        # Solution
+                        if solution := question['feedback'].get('solution'):
+                            if solution != "Not available":
+                                st.markdown("---")
+                                st.markdown("**📝 Correct Solution:**")
+                                st.markdown(format_math_text(format_explanation_text(solution)))
 
-    # Improvement Plan
-    st.header("📈 Improvement Plan")
-    if 'improvement_plan' in feedback:
-        # Create three columns for a more organized layout
-        plan_cols = st.columns(3)
+        # Improvement Plan
+        if 'improvement_plan' in feedback and any(feedback['improvement_plan'].values()):
+            st.header("📈 Improvement Plan")
+            plan_cols = st.columns(3)
+            
+            with plan_cols[0]:
+                st.subheader("📚 Topics to Review")
+                topics = feedback['improvement_plan'].get('topics_to_review', [])
+                if topics:
+                    for topic in topics:
+                        st.info(f"• {topic}")
+                else:
+                    st.info("No specific topics to review")
+            
+            with plan_cols[1]:
+                st.subheader("✍️ Practice Tasks")
+                tasks = feedback['improvement_plan'].get('recommended_practice', [])
+                if tasks:
+                    for task in tasks:
+                        st.success(f"• {task}")
+                else:
+                    st.info("No specific practice tasks suggested")
+            
+            with plan_cols[2]:
+                st.subheader("📖 Resources")
+                resources = feedback['improvement_plan'].get('resources', [])
+                if resources:
+                    for resource in resources:
+                        st.markdown(f"• {resource}")
+                else:
+                    st.info("No specific resources suggested")
         
-        with plan_cols[0]:
-            st.subheader("📚 Topics to Review")
-            for topic in feedback['improvement_plan'].get('topics_to_review', []):
-                st.info(f"• {topic}")
-        
-        with plan_cols[1]:
-            st.subheader("✍️ Practice Tasks")
-            for practice in feedback['improvement_plan'].get('recommended_practice', []):
-                st.success(f"• {practice}")
-        
-        with plan_cols[2]:
-            st.subheader("📖 Resources")
-            for resource in feedback['improvement_plan'].get('resources', []):
-                st.markdown(f"• {resource}")
-
-    # Export options
-    st.markdown("---")
-    st.header("📑 Export Options")
-    if st.button("Generate PDF Report"):
-        st.info("PDF report generation in progress...")
+    except Exception as e:
+        st.error(f"Error displaying feedback: {str(e)}")
+        st.info("Please try uploading the assignment again.")
 
 # Create an alias for the display_grading_feedback function
 display_feedback = display_grading_feedback

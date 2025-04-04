@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import fitz  # PyMuPDF for better PDF handling
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -19,15 +20,17 @@ def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
         # Enhanced prompt for better text extraction with explicit JSON response requirement
-        processing_prompt = """You are a PDF content processor. Your task is to extract and structure the content from this PDF document.
+        processing_prompt = """You are a PDF content processor. Your task is to extract and structure ALL content from this PDF document, including every page.
 
         CRITICAL REQUIREMENTS:
         1. You MUST return your response in valid JSON format ONLY
-        2. Analyze the content type (handwriting vs typed)
-        3. Identify the subject area and main topic
-        4. Structure the content logically
-        5. Format any mathematical content properly
-        6. Extract teacher's notes and comments exactly as written
+        2. Process and include content from ALL pages
+        3. Analyze the content type (handwriting vs typed)
+        4. Identify the subject area and main topic
+        5. Structure the content logically by page
+        6. Format any mathematical content properly
+        7. Extract teacher's notes and comments exactly as written
+        8. Maintain page separation in the output
 
         Return ONLY a JSON object with this EXACT structure (no other text):
         {
@@ -35,22 +38,28 @@ def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
             "metadata": {
                 "type": "typed/handwritten/mixed",
                 "subject_area": "math/science/english/etc",
-                "content_quality": "clear/legible/partially legible/etc"
+                "content_quality": "clear/legible/partially legible/etc",
+                "total_pages": "number of pages"
             },
             "original_notes": {
                 "teacher_comments": ["exact comment 1", "exact comment 2"],
                 "margin_notes": ["note 1", "note 2"],
                 "corrections": ["correction 1", "correction 2"]
             },
-            "sections": [
+            "pages": [
                 {
-                    "heading": "clear section name",
-                    "content": "formatted text content with proper spacing and line breaks",
-                    "equations": ["equation 1", "equation 2"],
-                    "key_points": ["key point 1", "key point 2"]
+                    "page_number": 1,
+                    "sections": [
+                        {
+                            "heading": "clear section name",
+                            "content": "formatted text content with proper spacing and line breaks",
+                            "equations": ["equation 1", "equation 2"],
+                            "key_points": ["key point 1", "key point 2"]
+                        }
+                    ]
                 }
             ],
-            "summary": "brief content overview",
+            "summary": "comprehensive content overview",
             "notes": ["important note 1", "important note 2"]
         }
 
@@ -61,11 +70,21 @@ def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
         - Maintain original structure
         - Preserve teacher's annotations exactly as written
 
-        IMPORTANT: Your response must be ONLY the JSON object, no other text or explanation."""
+        IMPORTANT: Process ALL pages and include ALL content in your response."""
 
-        # Read and process the PDF file
-        with open(pdf_path, 'rb') as f:
-            pdf_bytes = f.read()
+        # Read and process the PDF file using PyMuPDF for better handling
+        pdf_document = fitz.open(pdf_path)
+        pdf_content = ""
+        
+        # Extract text from all pages
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            pdf_content += f"\n=== Page {page_num + 1} ===\n"
+            pdf_content += page.get_text()
+        
+        # Convert to bytes for Gemini
+        pdf_bytes = pdf_document.tobytes()
+        pdf_document.close()
         
         # Create parts array for the request
         parts = [
@@ -89,7 +108,7 @@ def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
                 temperature=0.1,  # Lower temperature for more consistent formatting
                 top_p=0.95,
                 top_k=40,
-                max_output_tokens=8192,
+                max_output_tokens=30000,  # Increased for multi-page documents
                 response_mime_type="application/json"  # Enforce JSON response
             )
         )
@@ -114,46 +133,59 @@ def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
                     result['metadata'] = {
                         "type": "mixed",
                         "subject_area": "general",
-                        "content_quality": "processed"
+                        "content_quality": "processed",
+                        "total_pages": 1
                     }
+                result['metadata']['total_pages'] = pdf_document.page_count
+                
                 if not result.get('original_notes'):
                     result['original_notes'] = {
                         "teacher_comments": [],
                         "margin_notes": [],
                         "corrections": []
                     }
-                if not result.get('sections'):
-                    # Create at least one section with the content
-                    result['sections'] = [{
-                        "heading": "Main Content",
-                        "content": json_str,
-                        "equations": [],
-                        "key_points": []
-                    }]
+                    
+                # Ensure pages array exists and has correct structure
+                if not result.get('pages'):
+                    # Create default page structure
+                    result['pages'] = []
+                    for page_num in range(pdf_document.page_count):
+                        result['pages'].append({
+                            "page_number": page_num + 1,
+                            "sections": [{
+                                "heading": f"Page {page_num + 1} Content",
+                                "content": f"Content from page {page_num + 1}",
+                                "equations": [],
+                                "key_points": []
+                            }]
+                        })
                 
                 return result
                 
             except json.JSONDecodeError as e:
                 # Create a structured response from unstructured text
-                clean_text = response.text.strip()
                 return {
                     "title": "Processed Document",
                     "metadata": {
                         "type": "processed",
                         "subject_area": "general",
-                        "content_quality": "processed"
+                        "content_quality": "processed",
+                        "total_pages": pdf_document.page_count
                     },
                     "original_notes": {
                         "teacher_comments": [],
                         "margin_notes": [],
                         "corrections": []
                     },
-                    "sections": [{
-                        "heading": "Main Content",
-                        "content": clean_text,
-                        "equations": [],
-                        "key_points": []
-                    }],
+                    "pages": [{
+                        "page_number": i + 1,
+                        "sections": [{
+                            "heading": f"Page {i + 1} Content",
+                            "content": f"Content from page {i + 1}",
+                            "equations": [],
+                            "key_points": []
+                        }]
+                    } for i in range(pdf_document.page_count)],
                     "summary": "Document has been processed and content extracted",
                     "notes": []
                 }
@@ -175,30 +207,33 @@ def format_structured_output(structured_content: Dict[str, Any]) -> str:
     output.append("## Document Information")
     output.append(f"- Type: {metadata.get('type', 'unknown')}")
     output.append(f"- Subject Area: {metadata.get('subject_area', 'unknown')}")
-    output.append(f"- Content Quality: {metadata.get('content_quality', 'unknown')}\n")
+    output.append(f"- Content Quality: {metadata.get('content_quality', 'unknown')}")
+    output.append(f"- Total Pages: {metadata.get('total_pages', 'unknown')}\n")
     
     # Add summary if available
     if 'summary' in structured_content:
         output.append("## Summary")
         output.append(structured_content['summary'] + "\n")
     
-    # Add sections
-    for section in structured_content.get('sections', []):
-        output.append(f"## {section.get('heading', 'Section')}")
-        output.append(section.get('content', ''))
-        
-        # Add equations if present
-        if section.get('equations'):
-            output.append("\nEquations:")
-            for eq in section['equations']:
-                output.append(f"  {eq}")
-        
-        # Add key points if present
-        if section.get('key_points'):
-            output.append("\nKey Points:")
-            for point in section['key_points']:
-                output.append(f"- {point}")
-        output.append("")  # Add spacing between sections
+    # Add pages and sections
+    for page in structured_content.get('pages', []):
+        output.append(f"### Page {page.get('page_number', 'unknown')}")
+        for section in page.get('sections', []):
+            output.append(f"#### {section.get('heading', 'Section')}")
+            output.append(section.get('content', ''))
+            
+            # Add equations if present
+            if section.get('equations'):
+                output.append("\nEquations:")
+                for eq in section['equations']:
+                    output.append(f"  {eq}")
+            
+            # Add key points if present
+            if section.get('key_points'):
+                output.append("\nKey Points:")
+                for point in section['key_points']:
+                    output.append(f"- {point}")
+            output.append("")  # Add spacing between sections
     
     # Add notes if present
     if structured_content.get('notes'):

@@ -9,6 +9,10 @@ def show_grading_page():
     """Display the grading interface with PDF upload and analysis"""
     st.title("Assignment Grading")
     
+    # Initialize session state if needed
+    if 'current_grading_result' not in st.session_state:
+        st.session_state.current_grading_result = None
+    
     # File upload
     uploaded_file = st.file_uploader(
         "Upload an assignment PDF",
@@ -42,8 +46,14 @@ def show_grading_page():
                     is_pdf=True
                 )
                 
+                # Store the result in session state
+                st.session_state.current_grading_result = grading_result
+                
                 # Display comprehensive feedback
-                display_grading_feedback(grading_result)
+                if grading_result:
+                    display_grading_feedback(grading_result)
+                else:
+                    st.error("Unable to process the assignment. Please try again.")
                 
         except Exception as e:
             st.error(f"Error analyzing assignment: {str(e)}")

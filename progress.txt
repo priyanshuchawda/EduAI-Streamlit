@@ -42,7 +42,7 @@ EduAI Assistant - Feature List & Implementation Status
    - Advanced difficulty calibration
    - Multi-format export with rich formatting
 
-6. Parent Reports [✅ COMPLETED]
+6. Parent Reports [⚠️ PARTIAL]
    - Weekly progress summaries (Implemented)
    - Performance visualizations (Implemented)
    - Detailed assessment history (Implemented)

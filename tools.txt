@@ -1,0 +1,33 @@
+# Technologies Used in EduAI Assistant 🎓
+
+## Core AI & Cloud Integration 🤖
+1. Google Gemini API (2025)
+   - gemini-2.0-pro for advanced AI features
+   - Multi-modal processing (Text + PDF)
+   - Context-aware responses
+   - Real-time content generation
+
+2. Google Cloud Services ☁️
+   - Calendar API (Scheduling)
+   - Sheets API (Data Storage)
+   - OAuth 2.0 (Security)
+
+## Development Stack 💻
+1. Frontend & Backend
+   - Streamlit (UI Framework)
+   - Python 3.9+ (Backend)
+   - PyMuPDF (PDF Processing)
+
+2. Data & Visualization
+   - Pandas (Data Analysis)
+   - Matplotlib (Charts)
+   - NumPy (Computations)
+
+## Key Features 🌟
+- AI-powered grading
+- Smart scheduling
+- Question generation
+- Performance analytics
+- Syllabus management
+
+This solution leverages Gemini AI APIs as its core technology, enhanced by Google Cloud services for a robust educational platform.

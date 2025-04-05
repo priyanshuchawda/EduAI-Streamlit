@@ -31,3 +31,5 @@
 - Syllabus management
 
 This solution leverages Gemini AI APIs as its core technology, enhanced by Google Cloud services for a robust educational platform.
+
+

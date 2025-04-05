@@ -23,9 +23,21 @@ def get_google_sheets_client():
         if not spreadsheet_id:
             raise Exception("Missing GOOGLE_SHEETS_SPREADSHEET_ID in .env file")
 
-        # Read credentials from credentials1.json
-        credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials1.json')
-        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+        # Create credentials dict from environment variables
+        credentials_info = {
+            "type": os.getenv('GOOGLE_TYPE'),
+            "project_id": os.getenv('GOOGLE_PROJECT_ID'),
+            "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+            "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
+            "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
+            "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+            "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
+            "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
+            "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
+            "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL')
+        }
+        
+        creds = Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
         return gspread.authorize(creds)
         
     except Exception as e:

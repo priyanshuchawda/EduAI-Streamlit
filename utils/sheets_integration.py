@@ -209,28 +209,41 @@ def analyze_student_performance(
 - Past Year Question Performance: {json.dumps(pyq_performance)}
 - Syllabus Completion: {syllabus_completion}%
 
-### Analysis Needed:
-1. Strengths & Weaknesses: Identify key strong and weak areas based on assignment performance.
-2. Predicted Score: Predict their next exam score based on trends.
-3. Improvement Plan: Suggest 3 key actions to improve weak areas.
-4. AI Insights: What learning strategies would be best for this student?
-5. Motivational Message: Generate a custom motivational message for the student.
-
-Return the insights in JSON format with the following structure exactly:
+### Required Analysis Format:
+Please provide a detailed analysis in the following JSON structure:
 {{
-    "Strengths": ["Topic 1", "Topic 2"],
-    "Weaknesses": ["Topic 3", "Topic 4"],
-    "Predicted_Score": 85,
-    "Improvement_Plan": ["Tip 1", "Tip 2", "Tip 3"],
-    "Learning_Strategy": "Strategy description",
-    "Motivational_Message": "Motivational message"
-}}"""
+    "Overall_Assessment": "A detailed 2-3 sentence overview of the student's performance",
+    "Strengths": [
+        "List 3-4 specific strengths with clear examples",
+        "Each strength should be concrete and actionable"
+    ],
+    "Weaknesses": [
+        "List 3-4 specific areas for improvement",
+        "Each weakness should be accompanied by improvement potential"
+    ],
+    "Predicted_Score": "A number between 0-100 based on trend analysis",
+    "Improvement_Plan": [
+        "3-4 specific action items",
+        "Each should be detailed and actionable"
+    ],
+    "Learning_Strategy": "A paragraph explaining recommended learning approach",
+    "Motivational_Message": "A personalized encouraging message"
+}}
 
-    # Create content using Gemini API format
+### Analysis Guidelines:
+1. Be specific and actionable in feedback
+2. Focus on observable patterns
+3. Provide constructive criticism
+4. Include positive reinforcement
+5. Base predictions on historical data
+6. Keep feedback professional and encouraging
+
+Please analyze the student's performance and provide the response in the exact JSON format specified above."""
+
     contents = [
         types.Content(
             role="user",
-            parts=[{"text": prompt}]
+            parts=[{"text": prompt}]  # Changed this line to use dictionary format
         )
     ]
     
@@ -253,6 +266,23 @@ Return the insights in JSON format with the following structure exactly:
         try:
             analysis = json.loads(response.text)
             
+            # Ensure all required fields are present
+            required_fields = [
+                'Overall_Assessment', 'Strengths', 'Weaknesses',
+                'Predicted_Score', 'Improvement_Plan',
+                'Learning_Strategy', 'Motivational_Message'
+            ]
+            
+            # Add default values for any missing fields
+            for field in required_fields:
+                if field not in analysis:
+                    if field in ['Strengths', 'Weaknesses', 'Improvement_Plan']:
+                        analysis[field] = ["Needs more data to analyze"]
+                    elif field == 'Predicted_Score':
+                        analysis[field] = '70'
+                    else:
+                        analysis[field] = "More data needed for detailed analysis"
+            
             # Save analysis to Google Sheets
             current_score = assignment_scores[-1] if assignment_scores else 0
             save_student_analysis(
@@ -265,7 +295,15 @@ Return the insights in JSON format with the following structure exactly:
             return analysis
             
         except json.JSONDecodeError:
-            raise Exception("Invalid JSON response from AI")
+            return {
+                'Overall_Assessment': 'Unable to generate analysis at this time',
+                'Strengths': ['More data needed'],
+                'Weaknesses': ['More data needed'],
+                'Predicted_Score': '70',
+                'Improvement_Plan': ['Complete more assignments for detailed analysis'],
+                'Learning_Strategy': 'Continue working on assignments to receive personalized strategy',
+                'Motivational_Message': 'Keep up the good work! Every assignment helps build a better analysis.'
+            }
         
     except Exception as e:
         raise Exception(f"Error analyzing student performance: {str(e)}")

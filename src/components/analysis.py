@@ -152,317 +152,355 @@ def show_analysis_page():
     """Display the student analysis page"""
     st.title("📊 Student Performance Analysis")
     
-    # Add filters in a clean sidebar layout
-    with st.sidebar:
-        st.subheader("📋 Analysis Filters")
-        time_range = st.selectbox(
-            "Time Period",
-            ["Last Week", "Last Month", "Last 3 Months", "All Time"],
-            index=3
+    # Add student information section
+    col1, col2 = st.columns(2)
+    with col1:
+        student_name = st.text_input(
+            "Student Name*", 
+            value=st.session_state.get('current_student', ''),
+            help="Enter student name to view their performance analysis"
         )
-        
-        available_subjects = ["Mathematics", "Science", "English", "Physics", "Chemistry", "Biology", "History", "Computer Science"]
-        subject_filter = st.multiselect(
-            "Filter by Subjects",
-            available_subjects,
-            default=[]
+    with col2:
+        roll_number = st.text_input(
+            "Roll Number*",
+            value=st.session_state.get('current_roll_number', ''),
+            help="Enter student roll number"
         )
-    
-    # Add student name input
-    student_name = st.text_input(
-        "Student Name", 
-        value=st.session_state.get('current_student', ''),
-        help="Enter student name to view their performance analysis"
-    )
-    
-    if student_name:
+
+    if student_name and roll_number:
         st.session_state.current_student = student_name
+        st.session_state.current_roll_number = roll_number
         
         # Create tabs for different analysis views
         tab1, tab2, tab3, tab4 = st.tabs([
             "📈 Overall Performance", 
-            "📚 Subject Performance", 
-            "📋 Detailed Reports",
-            "🎯 Improvement Plan"
+            "📚 Subject-wise Analysis", 
+            "📋 Assessment History",
+            "🎯 Personalized Plan"
         ])
         
-        # Collect data from all subject sheets
+        # Fetch data from all subject sheets
         all_subjects_data = {}
         overall_performance = []
+        available_subjects = ["Mathematics", "Science", "English", "Physics", "Chemistry", "Biology", "History", "Computer Science", "General"]
         
-        for subject in available_subjects:
-            try:
-                subject_data = get_student_subject_history(student_name, subject)
-                if not subject_data.empty:
-                    all_subjects_data[subject] = subject_data
-                    # Convert data for overall analysis
-                    for _, row in subject_data.iterrows():
-                        overall_performance.append({
-                            'Date': row['Date'],
-                            'Subject': subject,
-                            'Grade': row['Grade'],
-                            'Percentage': float(str(row['Percentage']).rstrip('%')),
-                            'Strengths': row['Strengths'].split(', ') if row['Strengths'] else [],
-                            'Areas for Improvement': row['Areas for Improvement'].split(', ') if row['Areas for Improvement'] else [],
-                            'Performance Trend': row['Previous Performance Trend']
-                        })
-            except Exception as e:
-                st.warning(f"Could not load data for {subject}: {str(e)}")
-        
-        df_overall = pd.DataFrame(overall_performance)
-        
-        with tab1:
-            if not df_overall.empty:
-                col1, col2, col3 = st.columns(3)
-                
-                # Calculate overall metrics
-                avg_score = df_overall['Percentage'].mean()
-                recent_trend = df_overall.sort_values('Date').iloc[-1]['Performance Trend']
-                consistency = df_overall['Percentage'].std()
-                
-                with col1:
-                    st.metric(
-                        "Overall Average",
-                        f"{avg_score:.1f}%",
-                        help="Average score across all subjects"
-                    )
-                
-                with col2:
-                    st.metric(
-                        "Recent Trend",
-                        recent_trend,
-                        help="Based on recent performance across subjects"
-                    )
-                
-                with col3:
-                    st.metric(
-                        "Consistency Score",
-                        f"{(100 - consistency):.1f}%",
-                        help="Higher score means more consistent performance"
-                    )
-                
-                # Performance timeline
-                st.subheader("📊 Performance Timeline")
-                fig = go.Figure()
-                
-                for subject in df_overall['Subject'].unique():
-                    subject_data = df_overall[df_overall['Subject'] == subject]
-                    fig.add_trace(go.Scatter(
-                        x=subject_data['Date'],
-                        y=subject_data['Percentage'],
-                        name=subject,
-                        mode='lines+markers'
-                    ))
-                
-                fig.update_layout(
-                    title="Performance Across Subjects",
-                    xaxis_title="Date",
-                    yaxis_title="Score (%)",
-                    hovermode="x unified"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No performance data available yet. Complete some assignments to see analysis.")
-        
-        with tab2:
-            if all_subjects_data:
-                st.subheader("📚 Subject-wise Analysis")
-                
-                for subject, data in all_subjects_data.items():
-                    with st.expander(f"{subject} Performance", expanded=True):
-                        col1, col2 = st.columns([2, 1])
-                        
-                        with col1:
-                            # Create subject-specific performance chart
-                            fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=data['Date'],
-                                y=[float(str(p).rstrip('%')) for p in data['Percentage']],
-                                mode='lines+markers',
-                                name='Score'
-                            ))
-                            fig.update_layout(
-                                title=f"{subject} Progress",
-                                xaxis_title="Date",
-                                yaxis_title="Score (%)"
-                            )
-                            st.plotly_chart(fig, use_container_width=True)
-                        
-                        with col2:
-                            # Show latest assessment details
-                            latest = data.iloc[-1]
-                            st.metric(
-                                "Latest Score",
-                                latest['Percentage'],
-                                latest['Previous Performance Trend']
-                            )
-                            
-                            st.write("**Recent Strengths:**")
-                            strengths = latest['Strengths'].split(', ') if latest['Strengths'] else []
-                            for strength in strengths[:3]:
-                                st.success(f"✓ {strength}")
-                            
-                            st.write("**Areas to Focus:**")
-                            improvements = latest['Areas for Improvement'].split(', ') if latest['Areas for Improvement'] else []
-                            for improvement in improvements[:3]:
-                                st.warning(f"! {improvement}")
-            else:
-                st.info("No subject-specific data available yet.")
-        
-        with tab3:
-            if all_subjects_data:
-                st.subheader("📋 Detailed Assessment Reports")
-                
-                # Sort options for reports
-                sort_by = st.selectbox(
-                    "Sort by",
-                    ["Most Recent", "Subject", "Highest Score", "Lowest Score"]
-                )
-                
-                # Combine all data and sort
-                all_assessments = pd.concat([df.assign(Subject=subject) for subject, df in all_subjects_data.items()])
-                
-                if sort_by == "Most Recent":
-                    all_assessments = all_assessments.sort_values('Date', ascending=False)
-                elif sort_by == "Subject":
-                    all_assessments = all_assessments.sort_values(['Subject', 'Date'], ascending=[True, False])
-                elif sort_by == "Highest Score":
-                    all_assessments['Score'] = all_assessments['Percentage'].str.rstrip('%').astype(float)
-                    all_assessments = all_assessments.sort_values('Score', ascending=False)
-                elif sort_by == "Lowest Score":
-                    all_assessments['Score'] = all_assessments['Percentage'].str.rstrip('%').astype(float)
-                    all_assessments = all_assessments.sort_values('Score', ascending=True)
-                
-                for _, row in all_assessments.iterrows():
-                    with st.expander(f"📝 {row['Subject']} - {row['Assignment Title']} ({row['Date']})"):
-                        st.write(f"**Grade:** {row['Grade']}")
-                        st.write(f"**Score:** {row['Percentage']}")
-                        st.write(f"**Summary:** {row['Summary']}")
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write("**Strengths:**")
-                            for strength in row['Strengths'].split(', ') if row['Strengths'] else []:
-                                st.success(f"✓ {strength}")
-                        
-                        with col2:
-                            st.write("**Areas for Improvement:**")
-                            for area in row['Areas for Improvement'].split(', ') if row['Areas for Improvement'] else []:
-                                st.warning(f"! {area}")
-                        
-                        if row['AI Suggestions']:
-                            st.write("**AI Suggestions:**")
-                            st.info(row['AI Suggestions'])
-            else:
-                st.info("No assessment reports available yet.")
-        
-        with tab4:
-            if all_subjects_data:
-                st.subheader("🎯 Personalized Improvement Plan")
-                
-                # Aggregate data for overall analysis
-                all_strengths = []
-                all_weaknesses = []
-                all_scores = []
-                
-                for subject_data in all_subjects_data.values():
-                    latest = subject_data.iloc[-1]
-                    if latest['Strengths']:
-                        all_strengths.extend(latest['Strengths'].split(', '))
-                    if latest['Areas for Improvement']:
-                        all_weaknesses.extend(latest['Areas for Improvement'].split(', '))
-                    all_scores.append(float(str(latest['Percentage']).rstrip('%')))
-                
-                # Generate improvement plan
+        with st.spinner("Analyzing student data..."):
+            for subject in available_subjects:
                 try:
+                    subject_data = get_student_subject_history(student_name, subject)
+                    if not subject_data.empty:
+                        all_subjects_data[subject] = subject_data
+                        # Convert data for overall analysis
+                        for _, row in subject_data.iterrows():
+                            overall_performance.append({
+                                'Date': row['Date'],
+                                'Subject': subject,
+                                'Grade': row['Grade'],
+                                'Percentage': float(str(row['Percentage']).rstrip('%')),
+                                'Strengths': row['Strengths'].split(', ') if row['Strengths'] else [],
+                                'Areas for Improvement': row['Areas for Improvement'].split(', ') if row['Areas for Improvement'] else [],
+                                'Performance Trend': row['Previous Performance Trend'],
+                                'Resources': row['Recommended Resources'].split(', ') if row['Recommended Resources'] else []
+                            })
+                except Exception as e:
+                    st.warning(f"Could not load data for {subject}: {str(e)}")
+            
+            df_overall = pd.DataFrame(overall_performance)
+            
+            # Generate comprehensive analysis using Gemini
+            if not df_overall.empty:
+                try:
+                    all_strengths = list(set([s for p in overall_performance for s in p['Strengths']]))
+                    all_weaknesses = list(set([w for p in overall_performance for w in p['Areas for Improvement']]))
+                    all_scores = [p['Percentage'] for p in overall_performance]
+                    
                     analysis_results = analyze_student_performance(
                         student_name=student_name,
                         assignment_scores=all_scores,
-                        strong_topics=list(set(all_strengths)),
-                        weak_topics=list(set(all_weaknesses)),
-                        pyq_performance={},  # This could be enhanced with PYQ data
+                        strong_topics=all_strengths,
+                        weak_topics=all_weaknesses,
+                        pyq_performance={},  # Can be enhanced with PYQ data
                         syllabus_completion=len(all_scores) * 10
                     )
                     
+                    # Save analysis to sheets
+                    save_analysis_to_sheets(student_name, analysis_results)
+                except Exception as e:
+                    st.error(f"Error generating analysis: {str(e)}")
+                    analysis_results = None
+
+            # Display Overall Performance (Tab 1)
+            with tab1:
+                if not df_overall.empty:
+                    st.subheader("📊 Performance Overview")
+                    
+                    # Key metrics
+                    col1, col2, col3 = st.columns(3)
+                    avg_score = df_overall['Percentage'].mean()
+                    recent_trend = df_overall.sort_values('Date').iloc[-1]['Performance Trend']
+                    consistency = df_overall['Percentage'].std()
+                    
+                    with col1:
+                        st.metric(
+                            "Overall Average",
+                            f"{avg_score:.1f}%", 
+                            delta=None,
+                            help="Average score across all subjects"
+                        )
+                    
+                    with col2:
+                        st.metric(
+                            "Recent Trend",
+                            recent_trend,
+                            help="Based on recent performance"
+                        )
+                    
+                    with col3:
+                        st.metric(
+                            "Consistency Score",
+                            f"{(100 - consistency):.1f}%", 
+                            help="Higher score means more consistent performance"
+                        )
+                    
+                    # Performance timeline
+                    st.subheader("📈 Performance Timeline")
+                    timeline_fig = create_advanced_performance_chart(df_overall)
+                    st.plotly_chart(timeline_fig, use_container_width=True)
+                    
                     if analysis_results:
-                        col1, col2 = st.columns([2, 1])
+                        st.subheader("🤖 AI Analysis")
+                        st.info(f"**Overall Assessment:** {analysis_results.get('Overall_Assessment', 'Not available')}")
                         
+                        col1, col2 = st.columns(2)
                         with col1:
-                            st.subheader("📈 Performance Projection")
-                            # Create projection chart using the analysis results
-                            create_performance_projection_chart(df_overall, analysis_results)
-                            
-                            st.subheader("📚 Recommended Study Plan")
-                            display_study_plan(analysis_results)
+                            st.write("**💪 Key Strengths:**")
+                            for strength in analysis_results.get('Strengths', []):
+                                st.success(f"✓ {strength}")
                         
                         with col2:
-                            st.metric(
-                                "Predicted Average Score",
-                                f"{analysis_results['Predicted_Score']}%",
-                                delta=f"{float(analysis_results['Predicted_Score']) - df_overall['Percentage'].mean():.1f}%"
-                            )
+                            st.write("**🎯 Areas for Improvement:**")
+                            for weakness in analysis_results.get('Weaknesses', []):
+                                st.warning(f"• {weakness}")
+                else:
+                    st.info("No performance data available yet. Complete some assignments to see analysis.")
+
+            # Display Subject Performance (Tab 2)
+            with tab2:
+                if all_subjects_data:
+                    for subject, data in all_subjects_data.items():
+                        with st.expander(f"{subject} Analysis", expanded=True):
+                            col1, col2 = st.columns([2, 1])
                             
-                            st.subheader("🎯 Quick Actions")
-                            for i, tip in enumerate(analysis_results['Improvement_Plan'], 1):
-                                st.info(f"{i}. {tip}")
+                            with col1:
+                                # Simple subject performance chart
+                                subject_fig = go.Figure()
+                                # Convert dates and ensure they're in ascending order
+                                data = data.sort_values('Date')
+                                # Convert percentages to float values
+                                percentages = [float(str(p).rstrip('%')) for p in data['Percentage']]
+                                
+                                subject_fig.add_trace(go.Scatter(
+                                    x=pd.to_datetime(data['Date']),
+                                    y=percentages,
+                                    mode='lines+markers',
+                                    name='Score',
+                                    line=dict(color="#1f77b4", width=3)
+                                ))
+                                
+                                subject_fig.update_layout(
+                                    title=f"{subject} Progress",
+                                    xaxis=dict(
+                                        title="Date",
+                                        type='date',
+                                        tickformat='%Y-%m-%d',
+                                        dtick='D1'  # Show daily ticks
+                                    ),
+                                    yaxis_title="Score (%)",
+                                    showlegend=False,
+                                    template="plotly_white",
+                                    hovermode="x unified"
+                                )
+                                # Add this line to display the chart
+                                st.plotly_chart(subject_fig, use_container_width=True)
                             
-                            st.divider()
-                            st.subheader("💭 AI Insights")
-                            st.success(analysis_results['Motivational_Message'])
-                except Exception as e:
-                    st.error(f"Error generating improvement plan: {str(e)}")
-            else:
-                st.info("Complete some assignments to get a personalized improvement plan!")
+                            with col2:
+                                latest = data.iloc[-1]
+                                st.metric(
+                                    "Latest Score",
+                                    latest['Percentage'],
+                                    delta=latest['Previous Performance Trend']
+                                )
+                                
+                                # Recent performance details with proper data handling
+                                st.write("**Recent Performance:**")
+                                
+                                # Handle strengths
+                                strengths = []
+                                if isinstance(latest['Strengths'], str) and latest['Strengths'].strip():
+                                    strengths = [s.strip() for s in latest['Strengths'].split(',') if s.strip()]
+                                elif isinstance(latest['Strengths'], list):
+                                    strengths = latest['Strengths']
+                                
+                                if strengths:
+                                    st.write("✓ Strengths:")
+                                    for strength in strengths[:3]:  # Show top 3 strengths
+                                        st.success(f"• {strength}")
+                                else:
+                                    st.info("Complete more assignments to see strengths")
+                                
+                                # Handle areas to focus
+                                improvements = []
+                                if isinstance(latest['Areas for Improvement'], str) and latest['Areas for Improvement'].strip():
+                                    improvements = [i.strip() for i in latest['Areas for Improvement'].split(',') if i.strip()]
+                                elif isinstance(latest['Areas for Improvement'], list):
+                                    improvements = latest['Areas for Improvement']
+                                
+                                if improvements:
+                                    st.write("! Areas to Focus:")
+                                    for improvement in improvements[:3]:  # Show top 3 areas
+                                        st.warning(f"• {improvement}")
+                                else:
+                                    st.info("Complete more assignments to see areas for improvement")
+                else:
+                    st.info("No subject-wise data available yet.")
+
+            # Display Assessment History (Tab 3)
+            with tab3:
+                if all_subjects_data:
+                    st.subheader("📋 Assessment History")
+                    
+                    # Sort options
+                    sort_by = st.selectbox(
+                        "Sort by",
+                        ["Most Recent", "Subject", "Highest Score", "Lowest Score"]
+                    )
+                    
+                    # Combine and sort all assessments
+                    all_assessments = []
+                    for subject, data in all_subjects_data.items():
+                        for _, row in data.iterrows():
+                            all_assessments.append({
+                                'Date': pd.to_datetime(row['Date']),
+                                'Subject': subject,
+                                'Grade': row['Grade'],
+                                'Score': float(str(row['Percentage']).rstrip('%')),
+                                'Details': row
+                            })
+                    
+                    df_assessments = pd.DataFrame(all_assessments)
+                    if sort_by == "Most Recent":
+                        df_assessments = df_assessments.sort_values('Date', ascending=False)
+                    elif sort_by == "Subject":
+                        df_assessments = df_assessments.sort_values(['Subject', 'Date'], ascending=[True, False])
+                    elif sort_by == "Highest Score":
+                        df_assessments = df_assessments.sort_values('Score', ascending=False)
+                    else:  # Lowest Score
+                        df_assessments = df_assessments.sort_values('Score', ascending=True)
+                    
+                    # Display assessments
+                    for _, assessment in df_assessments.iterrows():
+                        with st.expander(
+                            f"{assessment['Subject']} - {assessment['Date'].strftime('%Y-%m-%d')} "
+                            f"(Grade: {assessment['Grade']}, Score: {assessment['Score']}%)"
+                        ):
+                            details = assessment['Details']
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write("**📝 Assessment Details:**")
+                                st.write(f"• Assignment: {details['Assignment Title']}")
+                                st.write(f"• Performance Trend: {details['Previous Performance Trend']}")
+                            
+                            with col2:
+                                st.write("**💡 Key Takeaways:**")
+                                if details['Strengths']:
+                                    strengths = details['Strengths'].split(', ') if isinstance(details['Strengths'], str) else details['Strengths']
+                                    st.write("**Strengths:**")
+                                    for strength in strengths:
+                                        st.success(f"✓ {strength}")
+                                
+                                if details['Areas for Improvement']:
+                                    improvements = details['Areas for Improvement'].split(', ') if isinstance(details['Areas for Improvement'], str) else details['Areas for Improvement']
+                                    st.write("**Areas for Improvement:**")
+                                    for improvement in improvements:
+                                        st.warning(f"• {improvement}")
+                else:
+                    st.info("No assessment history available yet.")
+
+            # Display Personalized Plan (Tab 4)
+            with tab4:
+                if analysis_results:
+                    st.subheader("🎯 Personalized Improvement Plan")
+                    
+                    # Study plan and recommendations
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.write("**📚 Recommended Study Plan:**")
+                        for i, action in enumerate(analysis_results.get('Improvement_Plan', []), 1):
+                            st.info(f"{i}. {action}")
+                        
+                        st.write("**🎓 Learning Strategy:**")
+                        st.success(analysis_results.get('Learning_Strategy', 'Not available'))
+                    
+                    with col2:
+                        st.metric(
+                            "Predicted Next Score",
+                            f"{analysis_results.get('Predicted_Score', '0')}%",
+                            delta=f"{float(analysis_results.get('Predicted_Score', 0)) - avg_score:.1f}%"
+                        )
+                        
+                        st.write("**💭 Motivational Message:**")
+                        st.info(analysis_results.get('Motivational_Message', 'Keep working hard!'))
+                    
+                    # Resources and next steps
+                    st.subheader("📚 Recommended Resources")
+                    resources = []
+                    for subject_data in all_subjects_data.values():
+                        latest = subject_data.iloc[-1]
+                        if latest['Recommended Resources']:
+                            resources.extend(latest['Recommended Resources'].split(', '))
+                    
+                    if resources:
+                        for resource in list(set(resources)):
+                            st.write(f"• {resource}")
+                    else:
+                        st.info("Complete more assignments to get personalized resource recommendations.")
+                else:
+                    st.info("Complete more assignments to get a personalized improvement plan.")
+    else:
+        st.warning("Please enter both student name and roll number to view analysis.")
 
 def create_advanced_performance_chart(df):
     """Create an interactive performance chart using plotly"""
-    # Create figure with secondary y-axis
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig = go.Figure()
+    
+    # Convert Date to datetime if it's not already
+    df['Date'] = pd.to_datetime(df['Date'])
     
     # Add score line
     fig.add_trace(
         go.Scatter(
-            x=df["timestamp"],
-            y=df["grade"],
+            x=df["Date"],
+            y=df["Percentage"],
             name="Score",
             line=dict(color="#1f77b4", width=3),
             mode="lines+markers"
-        ),
-        secondary_y=False,
+        )
     )
     
-    # Add trend line
-    z = np.polyfit(range(len(df)), df["grade"], 1)
-    p = np.poly1d(z)
-    fig.add_trace(
-        go.Scatter(
-            x=df["timestamp"],
-            y=p(range(len(df))),
-            name="Trend",
-            line=dict(color="#ff7f0e", dash="dash"),
-        ),
-        secondary_y=False,
-    )
-    
-    # Calculate and add moving average
-    df['MA5'] = df['grade'].rolling(window=5).mean()
-    fig.add_trace(
-        go.Scatter(
-            x=df["timestamp"],
-            y=df['MA5'],
-            name="5-Point Moving Average",
-            line=dict(color="#2ca02c", dash="dot"),
-        ),
-        secondary_y=False,
-    )
-    
-    # Update layout
+    # Update layout with proper date formatting
     fig.update_layout(
-        title="Performance Trends and Analysis",
-        xaxis_title="Date",
+        title="Performance Trends",
+        xaxis=dict(
+            title="Date",
+            type='date',
+            tickformat='%Y-%m-%d',
+            dtick='D1'  # Show daily ticks
+        ),
         yaxis_title="Score (%)",
         hovermode="x unified",
-        showlegend=True,
+        showlegend=False,
         template="plotly_white"
     )
     
@@ -568,8 +606,8 @@ def sort_assessment_reports(df, sort_order):
 def create_performance_projection_chart(df, analysis_results):
     """Create a performance projection chart"""
     # Historical data
-    dates = df['timestamp']
-    scores = df['grade']
+    dates = pd.to_datetime(df['Date'])
+    scores = df['Percentage']
     
     # Project future dates
     last_date = dates.iloc[-1]
@@ -600,7 +638,12 @@ def create_performance_projection_chart(df, analysis_results):
     
     fig.update_layout(
         title="Performance Projection",
-        xaxis_title="Date",
+        xaxis=dict(
+            title="Date",
+            type='date',
+            tickformat='%Y-%m-%d',
+            dtick='D1'  # Show daily ticks
+        ),
         yaxis_title="Score (%)",
         showlegend=True,
         hovermode="x unified"

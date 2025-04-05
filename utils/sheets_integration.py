@@ -20,15 +20,16 @@ def get_google_sheets_client():
     
     try:
         spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        credentials_json = json.loads(os.getenv('GOOGLE_SHEETS_CREDENTIALS', '{}'))
-        
-        if not spreadsheet_id or not credentials_json:
-            raise Exception("Missing Google Sheets configuration in .env file")
-            
-        # Use credentials from environment
-        creds = Credentials.from_service_account_info(credentials_json, scopes=SCOPES)
+        if not spreadsheet_id:
+            raise Exception("Missing GOOGLE_SHEETS_SPREADSHEET_ID in .env file")
+
+        # Read credentials from credentials1.json
+        credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials1.json')
+        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
         return gspread.authorize(creds)
+        
     except Exception as e:
+        print(f"Detailed error: {str(e)}")
         raise Exception(f"Error loading credentials: {str(e)}")
 
 def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:

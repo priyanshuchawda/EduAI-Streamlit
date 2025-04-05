@@ -1,10 +1,25 @@
 import streamlit as st
-from utils.ai_grading import grade_assignment
+from utils.ai_grading import grade_assignment, GradingResponse
 from utils.feedback_display import display_grading_feedback
 import tempfile
 import os
 import time
 from datetime import datetime
+import json
+from typing import Dict, Any
+
+def validate_grading_result(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and fix grading result using Pydantic model"""
+    try:
+        if not result:
+            return GradingResponse().model_dump()
+            
+        # Use Pydantic model to validate and fill defaults
+        validated_result = GradingResponse(**result)
+        return validated_result.model_dump()
+    except Exception as e:
+        st.error(f"Error validating grading result: {str(e)}")
+        return GradingResponse().model_dump()
 
 def show_grading_page():
     """Display the grading interface with PDF upload and analysis"""
@@ -76,12 +91,15 @@ def show_grading_page():
                     roll_number=roll_number
                 )
                 
-                # Store the result in session state
-                st.session_state.current_grading_result = grading_result
+                # Validate and fix the grading result
+                validated_result = validate_grading_result(grading_result)
+                
+                # Store the validated result in session state
+                st.session_state.current_grading_result = validated_result
                 
                 # Display comprehensive feedback
-                if grading_result:
-                    display_grading_feedback(grading_result)
+                if validated_result:
+                    display_grading_feedback(validated_result)
                     
                     # Add save to sheets button
                     st.divider()
@@ -97,7 +115,7 @@ def show_grading_page():
                                     student_name=student_name,
                                     roll_number=roll_number,
                                     subject=subject,
-                                    grading_data=grading_result,
+                                    grading_data=validated_result,
                                     assignment_title=f"{subject} Assignment - {datetime.now().strftime('%Y-%m-%d')}"
                                 )
                                 if success:

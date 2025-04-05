@@ -8,7 +8,7 @@ from typing import Union, Dict, List, Any, Optional
 import tempfile
 from dotenv import load_dotenv
 import time
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_validator
 from datetime import datetime
 import fitz
 
@@ -23,19 +23,19 @@ class Evaluation(BaseModel):
     score: str = Field(default="0")
     explanation: str = Field(default="No explanation available")
 
-    @validator('correctness')
+    @field_validator('correctness')
     def validate_correctness(cls, v):
         if not v or v not in ['correct', 'incorrect', 'partial', 'N/A']:
             return 'N/A'
         return v
 
-    @validator('score')
+    @field_validator('score')
     def validate_score(cls, v):
         if not v:
             return "0"
         return str(v)
 
-    @validator('explanation')
+    @field_validator('explanation')
     def validate_explanation(cls, v):
         if not v:
             return "No explanation available"
@@ -46,13 +46,13 @@ class Feedback(BaseModel):
     improvements: List[str] = Field(default_factory=list)
     solution: str = Field(default="Not available")
 
-    @validator('strengths', 'improvements')
+    @field_validator('strengths', 'improvements')
     def validate_lists(cls, v):
         if not v:
             return []
         return [str(item) for item in v if item]
 
-    @validator('solution')
+    @field_validator('solution')
     def validate_solution(cls, v):
         if not v:
             return "Not available"
@@ -60,13 +60,13 @@ class Feedback(BaseModel):
 
 class QuestionEvaluation(BaseModel):
     question_number: str
-    question_text: str = Field(default="Unable to extract question")
+    question_text: str = Field(default="Unable to extract question")  
     student_answer: str = Field(default="Unable to extract answer")
     page_number: Optional[str] = Field(default=None)
     evaluation: Evaluation = Field(default_factory=Evaluation)
     feedback: Feedback = Field(default_factory=Feedback)
 
-    @validator('question_number', 'question_text', 'student_answer', 'page_number')
+    @field_validator('question_number', 'question_text', 'student_answer', 'page_number')
     def validate_strings(cls, v):
         if v is None:
             return ""
@@ -101,13 +101,13 @@ class GradingResponse(BaseModel):
         }
     )
 
-    @validator('student_name', 'roll_number', 'summary')
+    @field_validator('student_name', 'roll_number', 'summary')
     def validate_strings(cls, v):
         if not v:
-            return cls.__fields__[cls._get_field_name(v)].default
+            return cls.model_fields[cls._get_field_name(v)].default
         return str(v)
 
-    @validator('percentage')
+    @field_validator('percentage')
     def ensure_percentage_format(cls, v):
         if not v:
             return "0%"
@@ -118,24 +118,24 @@ class GradingResponse(BaseModel):
             return f"{v}%"
         return v
 
-    @validator('grade')
+    @field_validator('grade')
     def validate_grade(cls, v):
         valid_grades = ['A', 'B', 'C', 'D', 'F', 'N/A']
         if not v or v not in valid_grades:
             return 'N/A'
         return v
 
-    @validator('questions', pre=True)
+    @field_validator('questions', mode='before')
     def ensure_questions(cls, v):
         if not v:
             return [QuestionEvaluation(question_number="1")]
         return v
 
-    @validator('skills_analysis', 'improvement_plan')
+    @field_validator('skills_analysis', 'improvement_plan', mode='before')
     def ensure_dict_lists(cls, v):
-        if not v:
-            return cls.__fields__[cls._get_field_name(v)].default_factory()
-        return {k: [str(item) for item in items if item] for k, items in v.items()}
+        if not isinstance(v, dict):
+            return cls.model_fields[cls._get_field_name(v)].default
+        return v
 
     model_config = {
         "validate_assignment": True,
@@ -144,10 +144,9 @@ class GradingResponse(BaseModel):
 
     @classmethod
     def _get_field_name(cls, value):
-        # Helper method to get the field name from the validator context
-        for name, field in cls.__fields__.items():
+        for field_name, field in cls.model_fields.items():
             if field.default == value:
-                return name
+                return field_name
         return None
 
 def fix_incomplete_json(text: str) -> str:

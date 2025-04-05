@@ -8,9 +8,9 @@ from typing import Union, Dict, List, Any, Optional
 import tempfile
 from dotenv import load_dotenv
 import time
-from pydantic import BaseModel, Field, validator, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
-import fitz
+import fitz  # PyMuPDF
 
 # Define the expected response structure using Pydantic with default values
 class OriginalNotes(BaseModel):
@@ -151,6 +151,9 @@ class GradingResponse(BaseModel):
 
 def fix_incomplete_json(text: str) -> str:
     """Fix common JSON issues in the response"""
+    if not text or not text.strip():
+        return '{}'
+        
     # Remove any markdown formatting
     if "```json" in text:
         text = text.split("```json", 1)[1]
@@ -160,35 +163,66 @@ def fix_incomplete_json(text: str) -> str:
     # Clean up the text
     text = text.strip()
     
-    # Find the last complete object by checking balanced braces
-    brace_count = 0
-    last_complete = 0
-    in_string = False
-    escape_next = False
+    # Ensure the text starts with an opening brace
+    if not text.startswith('{'):
+        if '{' in text:
+            text = text[text.index('{'):]
+        else:
+            return '{}'
+            
+    # Try to complete truncated JSON by adding missing closing braces
+    # Count opening and closing braces
+    open_count = text.count('{')
+    close_count = text.count('}')
     
-    for i, char in enumerate(text):
-        if escape_next:
-            escape_next = False
-            continue
+    # If we have a truncated JSON, try to complete it
+    if open_count > close_count:
+        # First try to find the last complete object
+        brace_count = 0
+        in_string = False
+        escape_next = False
+        last_complete = 0
+        has_complete_object = False
+        
+        for i, char in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+                
+            if char == '\\':
+                escape_next = True
+                continue
+                
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+                
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        last_complete = i + 1
+                        has_complete_object = True
+        
+        if has_complete_object:
+            # We found a complete object, use it
+            text = text[:last_complete].strip()
+        else:
+            # No complete object found, try to complete the JSON
+            # Add any missing closing braces for objects
+            missing_braces = open_count - close_count
+            text += '}' * missing_braces
             
-        if char == '\\':
-            escape_next = True
-            continue
+            # Try to fix any truncated string values
+            text = re.sub(r'\"([^\"]*?)$', r'"\1"', text)
             
-        if char == '"' and not escape_next:
-            in_string = not in_string
-            continue
-            
-        if not in_string:
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    last_complete = i + 1
-
-    # Get the complete JSON object
-    text = text[:last_complete].strip()
+            # Add closing braces for any unclosed arrays
+            open_arrays = text.count('[')
+            close_arrays = text.count(']')
+            if open_arrays > close_arrays:
+                text += ']' * (open_arrays - close_arrays)
     
     # Fix missing quotes around property names
     text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
@@ -198,6 +232,33 @@ def fix_incomplete_json(text: str) -> str:
     text = re.sub(r'"percentage"\s*:\s*null', '"percentage": "0%"', text)
     text = re.sub(r'"summary"\s*:\s*null', '"summary": "No summary available"', text)
     
+    # Add missing required fields if they don't exist
+    required_fields = {
+        '"student_name"': '"Unknown Student"',
+        '"roll_number"': '"N/A"',
+        '"grade"': '"N/A"',
+        '"percentage"': '"0%"',
+        '"summary"': '"No summary available"',
+        '"questions"': '[]',
+        '"skills_analysis"': '{"mastered":[],"developing":[],"needs_work":[]}', 
+        '"improvement_plan"': '{"topics_to_review":[],"recommended_practice":[],"resources":[]}' 
+    }
+    
+    # Check for missing required fields and add them
+    for field, default_value in required_fields.items():
+        if field not in text:
+            if text.endswith('}'):
+                text = text[:-1]  # Remove closing brace
+                if not text.endswith(','):
+                    text += ','
+                text += f'{field}:{default_value}}}'
+    
+    # Ensure text starts and ends with curly braces
+    if not text.startswith('{'):
+        text = '{' + text
+    if not text.endswith('}'):
+        text += '}'
+        
     return text
 
 def grade_assignment(
@@ -211,169 +272,147 @@ def grade_assignment(
     try:
         # Initialize the Gemini client with API key from environment
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        
-        # Extract assignment title from content
-        assignment_title = "Assignment " + datetime.now().strftime("%Y-%m-%d")
-        if isinstance(content, str) and len(content) > 50:
-            first_line = content.split('\n')[0][:50]
-            if first_line.strip():
-                assignment_title = first_line.strip()
 
-        # Process PDF in chunks for larger documents
         if is_pdf:
-            # Handle PDF content
-            temp_file = None
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                    temp_file.write(content)
-                    temp_file.flush()
+            # Create temporary PDF file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                temp_file.write(content)
+                temp_file.flush()
+                
+                try:
+                    # Upload PDF directly to Gemini
+                    document_file = client.files.upload(file=temp_file.name)
                     
-                    # Process PDF and extract text from all pages
-                    pdf_document = fitz.open(temp_file.name)
-                    total_pages = pdf_document.page_count
+                    # Add retry mechanism for API calls
+                    max_retries = 3
+                    retry_delay = 2  # seconds
+                    last_error = None
                     
-                    # Process pages in chunks of 5 to stay within token limits
-                    chunks = []
-                    for i in range(0, total_pages, 5):
-                        chunk_content = ""
-                        end_page = min(i + 5, total_pages)
-                        
-                        for page_num in range(i, end_page):
-                            page = pdf_document[page_num]
-                            chunk_content += f"\n=== Page {page_num + 1} ===\n"
-                            chunk_content += page.get_text()
-                        
-                        chunks.append(chunk_content)
-                    
-                    pdf_document.close()
+                    for attempt in range(max_retries):
+                        try:
+                            # Create grading prompt with strict JSON format requirement
+                            grading_prompt = f"""You are an expert teacher grading a student's assignment. Your task is to provide detailed evaluation in STRICT JSON format.
 
-                    # Process each chunk and combine results
-                    all_questions = []
-                    all_strengths = set()
-                    all_improvements = set()
-                    total_score = 0
-                    total_evaluated = 0
+IMPORTANT: Return ONLY valid JSON - no other text or explanation.
 
-                    for chunk_num, chunk in enumerate(chunks):
-                        chunk_prompt = f"""You are an expert teacher grading a section of an assignment (Part {chunk_num + 1} of {len(chunks)}).
-                        Process ALL questions in this section thoroughly.
+Assignment Details:
+- Student: {student_name or 'Unknown Student'}
+- Roll Number: {roll_number or 'N/A'}
+- Subject: {subject or 'General'}
 
-                        Student: {student_name or 'Unknown Student'}
-                        Roll Number: {roll_number or 'N/A'}
-                        Subject: {subject or 'General'}
+Required Response Format:
+{{
+    "student_name": "{student_name or 'Unknown Student'}",
+    "roll_number": "{roll_number or 'N/A'}",
+    "grade": "A/B/C/D/F",
+    "percentage": "85.5%",
+    "summary": "Overall performance summary",
+    "questions": [
+        {{
+            "question_number": "1",
+            "question_text": "Complete question text",
+            "student_answer": "Complete student answer",
+            "page_number": "1",
+            "evaluation": {{
+                "correctness": "correct/incorrect/partial",
+                "score": "points",
+                "explanation": "Detailed explanation"
+            }},
+            "feedback": {{
+                "strengths": ["point 1", "point 2"],
+                "improvements": ["area 1", "area 2"],
+                "solution": "Correct approach"
+            }}
+        }}
+    ],
+    "skills_analysis": {{
+        "mastered": ["skill 1", "skill 2"],
+        "developing": ["skill 3"],
+        "needs_work": ["skill 4", "skill 5"]
+    }},
+    "improvement_plan": {{
+        "topics_to_review": ["topic 1", "topic 2"],
+        "recommended_practice": ["practice 1", "practice 2"],
+        "resources": ["resource 1", "resource 2"]
+    }}
+}}"""
 
-                        Instructions:
-                        1. Extract and grade ALL questions and answers
-                        2. Provide detailed evaluation for each
-                        3. Return in exact JSON format
-
-                        Return ONLY a JSON object with this structure:
-                        {{
-                            "questions": [
-                                {{
-                                    "question_number": "1",
-                                    "question_text": "Complete question text",
-                                    "student_answer": "Complete student answer",
-                                    "page_number": "1",
-                                    "evaluation": {{
-                                        "correctness": "correct/incorrect/partial",
-                                        "score": "points",
-                                        "explanation": "Detailed explanation"
-                                    }},
-                                    "feedback": {{
-                                        "strengths": ["point 1", "point 2"],
-                                        "improvements": ["area 1", "area 2"],
-                                        "solution": "Correct approach"
-                                    }}
-                                }}
-                            ],
-                            "chunk_summary": {{
-                                "strengths": ["strength 1", "strength 2"],
-                                "improvements": ["improvement 1", "improvement 2"],
-                                "total_points": 0,
-                                "max_points": 0
-                            }}
-                        }}"""
-
-                        # Process chunk with Gemini
-                        response = client.models.generate_content(
-                            model="gemini-2.0-flash",
-                            contents=[{
-                                "role": "user",
-                                "parts": [
-                                    {"text": chunk_prompt},
-                                    {"text": chunk}
-                                ]
-                            }],
-                            config=types.GenerateContentConfig(
-                                temperature=0.1,
-                                top_p=0.95,
-                                top_k=40,
-                                max_output_tokens=30000,
-                                response_mime_type="application/json"
+                            # Generate content using the uploaded PDF
+                            response = client.models.generate_content(
+                                model="gemini-2.0-flash",
+                                contents=[grading_prompt, document_file],
+                                config=types.GenerateContentConfig(
+                                    temperature=0.1,
+                                    top_p=0.95,
+                                    top_k=40,
+                                    max_output_tokens=30000,
+                                    response_mime_type="application/json"
+                                )
                             )
-                        )
 
-                        if response and response.text:
-                            try:
-                                chunk_result = json.loads(fix_incomplete_json(response.text))
+                            if response and response.text:
+                                try:
+                                    # Print raw response for debugging
+                                    print(f"\nRaw response (first 500 chars):\n{response.text[:500]}")
+                                    
+                                    # Try to fix any JSON issues
+                                    fixed_json = fix_incomplete_json(response.text)
+                                    print(f"\nFixed JSON (first 500 chars):\n{fixed_json[:500]}")
+                                    
+                                    # Try to parse the JSON
+                                    result = json.loads(fixed_json)
+                                    
+                                    # Validate with Pydantic model
+                                    validated_response = GradingResponse(**result)
+                                    return validated_response.model_dump()
+                                    
+                                except json.JSONDecodeError as e:
+                                    print(f"\nJSON parsing error: {str(e)}")
+                                    last_error = e
+                                    if attempt < max_retries - 1:
+                                        print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
+                                        time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                                        continue
+                            else:
+                                print("\nEmpty response from Gemini API")
+                                if attempt < max_retries - 1:
+                                    print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
+                                    time.sleep(retry_delay * (attempt + 1))
+                                    continue
                                 
-                                # Accumulate questions
-                                if 'questions' in chunk_result:
-                                    all_questions.extend(chunk_result['questions'])
+                        except Exception as e:
+                            print(f"\nAPI call error: {str(e)}")
+                            last_error = e
+                            if attempt < max_retries - 1:
+                                print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
+                                time.sleep(retry_delay * (attempt + 1))
+                            else:
+                                print(f"All retry attempts failed. Last error: {str(last_error)}")
                                 
-                                # Accumulate strengths and improvements
-                                if 'chunk_summary' in chunk_result:
-                                    all_strengths.update(chunk_result['chunk_summary'].get('strengths', []))
-                                    all_improvements.update(chunk_result['chunk_summary'].get('improvements', []))
-                                    total_score += chunk_result['chunk_summary'].get('total_points', 0)
-                                    total_evaluated += chunk_result['chunk_summary'].get('max_points', 0)
-                            
-                            except json.JSONDecodeError:
-                                print(f"Error parsing chunk {chunk_num + 1}")
-                                continue
+                    # If we get here, all retries failed
+                    print("\nFalling back to default response structure")
+                    return GradingResponse(
+                        student_name=student_name or "Unknown Student",
+                        roll_number=roll_number or "N/A",
+                        grade="N/A",
+                        percentage="0%",
+                        summary="Unable to grade assignment due to technical issues"
+                    ).model_dump()
 
-                    # Calculate overall grade
-                    if total_evaluated > 0:
-                        percentage = (total_score / total_evaluated) * 100
-                        grade = calculate_grade(percentage)
-                    else:
-                        percentage = 0
-                        grade = 'N/A'
-
-                    # Combine all results
-                    final_result = {
-                        "student_name": student_name or "Unknown Student",
-                        "roll_number": roll_number or "N/A",
-                        "grade": grade,
-                        "percentage": f"{percentage:.1f}%",
-                        "summary": generate_summary(all_questions, percentage),
-                        "questions": all_questions,
-                        "skills_analysis": {
-                            "mastered": list(all_strengths)[:5],
-                            "developing": list(all_strengths)[5:8] if len(all_strengths) > 5 else [],
-                            "needs_work": list(all_improvements)[:5]
-                        },
-                        "improvement_plan": generate_improvement_plan(list(all_improvements), subject)
-                    }
-
-                    return final_result
-
-            finally:
-                if temp_file and os.path.exists(temp_file.name):
-                    try:
-                        os.unlink(temp_file.name)
-                    except Exception:
-                        pass
-
+                finally:
+                    # Clean up temporary file
+                    if os.path.exists(temp_file.name):
+                        try:
+                            os.unlink(temp_file.name)
+                        except Exception:
+                            pass
         else:
-            # Handle text content (existing code)
             print("Text content grading not implemented in this version.")
-            return {}
+            return GradingResponse().model_dump()
 
     except Exception as e:
         print(f"Error in grading assignment: {str(e)}")
-        return {}
+        return GradingResponse().model_dump()
 
 def calculate_grade(percentage: float) -> str:
     """Calculate letter grade from percentage"""

@@ -1,4 +1,5 @@
 from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import os.path
@@ -8,6 +9,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import json
 import pytz
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 SCOPES = [
     'https://www.googleapis.com/auth/calendar.readonly',
@@ -15,34 +20,29 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar'
 ]
 
-# AI Lessons calendar ID
-AI_CALENDAR_ID = 'b78504b8f33193f9648e16015ac0f99853bacb45cfb8f07b7685834813185826@group.calendar.google.com'
+# Get calendar ID from environment variables
+AI_CALENDAR_ID = os.getenv('GOOGLE_CALENDAR_ID')
 
 def get_calendar_credentials():
-    """Get or refresh Google Calendar credentials"""
-    if not is_calendar_configured():
-        raise Exception("Google Calendar credentials not found. Please set up credentials.json first.")
-        
-    creds = None
-    token_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'token.pickle')
-    
+    """Get Google Calendar credentials using service account"""
     try:
-        if os.path.exists(token_path):
-            with open(token_path, 'rb') as token:
-                creds = pickle.load(token)
+        # Create credentials dict from environment variables
+        credentials_info = {
+            "type": os.getenv('GOOGLE_TYPE'),
+            "project_id": os.getenv('GOOGLE_PROJECT_ID'),
+            "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+            "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
+            "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
+            "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+            "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
+            "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
+            "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
+            "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL')
+        }
         
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials.json')
-                flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-                creds = flow.run_local_server(port=8080)
-            
-            with open(token_path, 'wb') as token:
-                pickle.dump(creds, token)
-                
+        creds = ServiceAccountCredentials.from_service_account_info(credentials_info, scopes=SCOPES)
         return creds
+        
     except Exception as e:
         raise Exception(f"Error with calendar credentials: {str(e)}")
 
@@ -263,5 +263,15 @@ def format_event(event):
 
 def is_calendar_configured():
     """Check if calendar credentials are properly configured"""
-    credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials.json')
-    return os.path.exists(credentials_path)
+    return all([
+        os.getenv('GOOGLE_TYPE'),
+        os.getenv('GOOGLE_PROJECT_ID'),
+        os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+        os.getenv('GOOGLE_PRIVATE_KEY'),
+        os.getenv('GOOGLE_CLIENT_EMAIL'),
+        os.getenv('GOOGLE_CLIENT_ID'),
+        os.getenv('GOOGLE_AUTH_URI'),
+        os.getenv('GOOGLE_TOKEN_URI'),
+        os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
+        os.getenv('GOOGLE_CLIENT_CERT_URL')
+    ])

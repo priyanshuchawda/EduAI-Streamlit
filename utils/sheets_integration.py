@@ -22,20 +22,19 @@ def get_google_sheets_client():
     try:
         # Get credentials info from environment or secrets
         if hasattr(st, 'secrets'):
-            # We're on Streamlit Cloud, use structured secrets
-            creds_config = st.secrets["GOOGLE_SHEETS_SERVICE_ACCOUNT"]
+            # We're on Streamlit Cloud, use direct secrets
             credentials_info = {
-                "type": creds_config["TYPE"],
-                "project_id": creds_config["PROJECT_ID"],
-                "private_key_id": creds_config["PRIVATE_KEY_ID"],
-                "private_key": creds_config["PRIVATE_KEY"],
-                "client_email": creds_config["CLIENT_EMAIL"],
-                "client_id": creds_config["CLIENT_ID"],
-                "auth_uri": creds_config["AUTH_URI"],
-                "token_uri": creds_config["TOKEN_URI"],
-                "auth_provider_x509_cert_url": creds_config["AUTH_PROVIDER_CERT_URL"],
-                "client_x509_cert_url": creds_config["CLIENT_CERT_URL"],
-                "universe_domain": creds_config.get("UNIVERSE_DOMAIN", "googleapis.com")
+                "type": st.secrets["GOOGLE_TYPE"],
+                "project_id": st.secrets["GOOGLE_PROJECT_ID"],
+                "private_key_id": st.secrets["GOOGLE_PRIVATE_KEY_ID"],
+                "private_key": st.secrets["GOOGLE_PRIVATE_KEY"],
+                "client_email": st.secrets["GOOGLE_CLIENT_EMAIL"],
+                "client_id": st.secrets["GOOGLE_CLIENT_ID"],
+                "auth_uri": st.secrets["GOOGLE_AUTH_URI"],
+                "token_uri": st.secrets["GOOGLE_TOKEN_URI"],
+                "auth_provider_x509_cert_url": st.secrets["GOOGLE_AUTH_PROVIDER_CERT_URL"],
+                "client_x509_cert_url": st.secrets["GOOGLE_CLIENT_CERT_URL"],
+                "universe_domain": st.secrets.get("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")
             }
             spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"]
         else:
@@ -80,8 +79,9 @@ def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:
     try:
         client = get_google_sheets_client()
         
-        # Use the specific spreadsheet ID
-        spreadsheet = client.open_by_key(os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID'))
+        # Use the specific spreadsheet ID from secrets or env
+        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
+        spreadsheet = client.open_by_key(spreadsheet_id)
         
         # Try to get the Teacher worksheet
         try:
@@ -110,7 +110,9 @@ def get_syllabus_sheet() -> gspread.Worksheet:
     """Get or create the syllabus worksheet"""
     try:
         client = get_google_sheets_client()
-        spreadsheet = client.open_by_key(os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID'))
+        # Use spreadsheet ID from secrets or env
+        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
+        spreadsheet = client.open_by_key(spreadsheet_id)
         
         try:
             worksheet = spreadsheet.worksheet('Syllabus')
@@ -369,7 +371,9 @@ def get_or_create_subject_sheet(subject: str) -> gspread.Worksheet:
     """Get or create a sheet for a specific subject"""
     try:
         client = get_google_sheets_client()
-        spreadsheet = client.open_by_key(os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID'))
+        # Use spreadsheet ID from secrets or env
+        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
+        spreadsheet = client.open_by_key(spreadsheet_id)
         
         # Try to get the subject worksheet
         try:

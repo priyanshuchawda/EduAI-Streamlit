@@ -136,3 +136,28 @@ Core Technologies:
 - Environment: Python Virtual Environment
 - Dependencies: requirements.txt
 - Configuration: JSON, Environment Variables
+
+
+                English (auto-generated)
+                
+                  00:00
+                  meet Priya mom she teaches 80 students she spends 15 plus hours every week grading tracking and managing lessons instead of what she loves teaching that's why we built Edu Aai Assistant an AI powered educational manager that simplifies a teacher's life using Google AI and tools each main tab working with real data focuses on grading analysis personalized feedback syllabus tracker and teacher chat start by uploading a PDF of student answers in seconds EduAI autogrades it using Google Gemini highlighting
+              
+                  00:33
+                  strengths and weaknesses assigning scores and even giving personalized feedback for each question it then saves the full results to Google Sheets for recordeping and future analysis for feedback instantly and automatically teachers are overburdened in large classrooms giving personalized feedback to every student is nearly impossible students miss out on guidance not due to lack of care but due to lack of time eduai Assistant solves this with AI powered grading and personalized analysis assignments graded by the AI
+              
+                  01:05
+                  are stored directly in Google Sheets making it easy for teachers to review and track the system highlights strengths like computer science mastery and strong fundamentals and and flags key improvement areas skipped steps weak conclusions and score fluctuations are all detected with tailored tips and potential score boosts subject-wise breakdowns in a smart study plan help students focus exactly where they need to improve backed by Gemini and Vertex AI and tightly integrated with Google Sheets Edu Aai turns raw marks into meaningful
+              
+                  01:38
+                  feedback saving teachers hours and helping students thrive managing a full syllabus manually is tough especially for busy educators with Eduai's AI lesson teachers just enter the subject topic duration preferred days and class times in seconds it autogenerates a structured week-wise teaching plan the best part it automatically syncs this schedule to the teacher's Google calendar so everything is neatly organized and reminders are set students also benefit from this plan knowing exactly what to expect in each
+              
+                  02:12
+                  lecture boosting preparation and consistency with Eduai syllabus planning becomes smart time-saving and fully integrated into your existing tools got a teaching doubt just ask our AI teacher assistant chat helps with lesson planning assessments classroom tips and more instantly from engagement strategies to tech tools it's like having a teaching expert in your pocket this is just the beginning for Eduai next we aim to integrate regional language support mobile access AI agents and LMS integrations making it even more
+              
+                  02:46
+                  accessible for every classroom with Google AI and tools we're building the future of personalized inclusive education at scale
+              
+            
+
+            

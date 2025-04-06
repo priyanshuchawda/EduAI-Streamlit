@@ -23,7 +23,7 @@ def get_google_sheets_client():
         # Get credentials info from environment or secrets
         if hasattr(st, 'secrets'):
             # We're on Streamlit Cloud, use structured secrets
-            creds_config = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]
+            creds_config = st.secrets["GOOGLE_SHEETS_SERVICE_ACCOUNT"]
             credentials_info = {
                 "type": creds_config["TYPE"],
                 "project_id": creds_config["PROJECT_ID"],

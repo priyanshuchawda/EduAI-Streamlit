@@ -283,15 +283,8 @@ def grade_assignment(
                     # Upload PDF directly to Gemini
                     document_file = client.files.upload(file=temp_file.name)
                     
-                    # Add retry mechanism for API calls
-                    max_retries = 3
-                    retry_delay = 2  # seconds
-                    last_error = None
-                    
-                    for attempt in range(max_retries):
-                        try:
-                            # Create grading prompt with strict JSON format requirement
-                            grading_prompt = f"""You are an expert teacher grading a student's assignment. Your task is to provide detailed evaluation in STRICT JSON format.
+                    # Create grading prompt with strict JSON format requirement
+                    grading_prompt = f"""You are an expert teacher grading a student's assignment. Your task is to provide detailed evaluation in STRICT JSON format.
 
 IMPORTANT: Return ONLY valid JSON - no other text or explanation.
 
@@ -337,67 +330,37 @@ Required Response Format:
     }}
 }}"""
 
-                            # Generate content using the uploaded PDF
-                            response = client.models.generate_content(
-                                model="gemini-2.0-flash",
-                                contents=[grading_prompt, document_file],
-                                config=types.GenerateContentConfig(
-                                    temperature=0.1,
-                                    top_p=0.95,
-                                    top_k=40,
-                                    max_output_tokens=30000,
-                                    response_mime_type="application/json"
-                                )
-                            )
+                    # Generate content using the uploaded PDF without retry mechanism
+                    response = client.models.generate_content(
+                        model="gemini-2.0-flash",
+                        contents=[grading_prompt, document_file],
+                        config=types.GenerateContentConfig(
+                            temperature=0.1,
+                            top_p=0.95,
+                            top_k=40,
+                            max_output_tokens=30000,
+                            response_mime_type="application/json"
+                        )
+                    )
 
-                            if response and response.text:
-                                try:
-                                    # Print raw response for debugging
-                                    print(f"\nRaw response (first 500 chars):\n{response.text[:500]}")
-                                    
-                                    # Try to fix any JSON issues
-                                    fixed_json = fix_incomplete_json(response.text)
-                                    print(f"\nFixed JSON (first 500 chars):\n{fixed_json[:500]}")
-                                    
-                                    # Try to parse the JSON
-                                    result = json.loads(fixed_json)
-                                    
-                                    # Validate with Pydantic model
-                                    validated_response = GradingResponse(**result)
-                                    return validated_response.model_dump()
-                                    
-                                except json.JSONDecodeError as e:
-                                    print(f"\nJSON parsing error: {str(e)}")
-                                    last_error = e
-                                    if attempt < max_retries - 1:
-                                        print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
-                                        time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
-                                        continue
-                            else:
-                                print("\nEmpty response from Gemini API")
-                                if attempt < max_retries - 1:
-                                    print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
-                                    time.sleep(retry_delay * (attempt + 1))
-                                    continue
-                                
-                        except Exception as e:
-                            print(f"\nAPI call error: {str(e)}")
-                            last_error = e
-                            if attempt < max_retries - 1:
-                                print(f"Retrying... Attempt {attempt + 2}/{max_retries}")
-                                time.sleep(retry_delay * (attempt + 1))
-                            else:
-                                print(f"All retry attempts failed. Last error: {str(last_error)}")
-                                
-                    # If we get here, all retries failed
-                    print("\nFalling back to default response structure")
-                    return GradingResponse(
-                        student_name=student_name or "Unknown Student",
-                        roll_number=roll_number or "N/A",
-                        grade="N/A",
-                        percentage="0%",
-                        summary="Unable to grade assignment due to technical issues"
-                    ).model_dump()
+                    if response and response.text:
+                        # Try to fix any JSON issues
+                        fixed_json = fix_incomplete_json(response.text)
+                        
+                        # Try to parse the JSON
+                        result = json.loads(fixed_json)
+                        
+                        # Validate with Pydantic model
+                        validated_response = GradingResponse(**result)
+                        return validated_response.model_dump()
+                    else:
+                        return GradingResponse(
+                            student_name=student_name or "Unknown Student",
+                            roll_number=roll_number or "N/A",
+                            grade="N/A",
+                            percentage="0%",
+                            summary="Unable to get response from grading system"
+                        ).model_dump()
 
                 finally:
                     # Clean up temporary file
@@ -412,7 +375,13 @@ Required Response Format:
 
     except Exception as e:
         print(f"Error in grading assignment: {str(e)}")
-        return GradingResponse().model_dump()
+        return GradingResponse(
+            student_name=student_name or "Unknown Student",
+            roll_number=roll_number or "N/A",
+            grade="N/A",
+            percentage="0%",
+            summary=f"Error during grading: {str(e)}"
+        ).model_dump()
 
 def calculate_grade(percentage: float) -> str:
     """Calculate letter grade from percentage"""

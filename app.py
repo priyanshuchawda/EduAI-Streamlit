@@ -12,12 +12,58 @@ root_path = str(Path(__file__).parent)
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
+def check_required_secrets():
+    """Check for required secrets and show helpful error messages"""
+    required_vars = {
+        'GEMINI_API_KEY': 'Gemini API key for AI functionality',
+        'GOOGLE_SHEETS_SPREADSHEET_ID': 'Google Sheets spreadsheet ID',
+        'GOOGLE_TYPE': 'Google service account type',
+        'GOOGLE_PROJECT_ID': 'Google Cloud project ID',
+        'GOOGLE_PRIVATE_KEY_ID': 'Google service account private key ID',
+        'GOOGLE_PRIVATE_KEY': 'Google service account private key',
+        'GOOGLE_CLIENT_EMAIL': 'Google service account client email',
+        'GOOGLE_CLIENT_ID': 'Google service account client ID'
+    }
+    
+    if not hasattr(st, 'secrets'):
+        # We're running locally, check .env file
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        missing = [key for key in required_vars.keys() if not os.getenv(key)]
+        if missing:
+            st.error("⚠️ Missing Required Environment Variables")
+            st.markdown("The following variables are missing from your .env file:")
+            for var in missing:
+                st.markdown(f"- `{var}`: {required_vars[var]}")
+            st.stop()
+    else:
+        # We're on Streamlit Cloud, check secrets
+        missing = [key for key in required_vars.keys() if key not in st.secrets]
+        if missing:
+            st.error("⚠️ Missing Required Streamlit Secrets")
+            st.markdown("The following secrets need to be configured in Streamlit Cloud:")
+            for var in missing:
+                st.markdown(f"- `{var}`: {required_vars[var]}")
+            st.markdown("""
+            ### How to Fix:
+            1. Go to your app settings in Streamlit Cloud
+            2. Click on 'Secrets'
+            3. Add the missing secrets
+            
+            Make sure to add them exactly as shown in your .env file.
+            """)
+            st.stop()
+
 def setup_environment():
     """Setup environment variables from Streamlit secrets or .env file"""
+    # Check for required secrets first
+    check_required_secrets()
+    
     if hasattr(st, 'secrets'):
-        # We're on Streamlit Cloud, use secrets
-        for key, value in st.secrets.items():
-            os.environ[key] = str(value)
+        # We're on Streamlit Cloud, copy secrets to environment variables
+        for key in st.secrets:
+            os.environ[key] = str(st.secrets[key])
             
         # Special handling for the service account credentials
         service_account_keys = {

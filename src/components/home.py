@@ -20,11 +20,10 @@ def show_home_page():
     if st.session_state.first_visit:
         with st.info("👋 Welcome! Let's get you started with EduAI Assistant"):
             st.markdown("""
-            1. **Upload Assignment**: Convert PDF assignments to text
-            2. **Grading**: Get AI-powered grading and feedback
-            3. **Student Analysis**: Track performance over time
-            4. **Question Bank**: Generate custom questions
-            5. **Teacher Chat**: Get instant teaching assistance
+            1. **Grading**: Get AI-powered grading and feedback
+            2. **Student Analysis**: Track performance over time
+            3. **Question Bank**: Generate custom questions
+            4. **Teacher Chat**: Get instant teaching assistance
             """)
             if st.button("Got it!"):
                 st.session_state.first_visit = False
@@ -34,17 +33,17 @@ def show_home_page():
     
     with col1:
         st.markdown("""
-        ### 📝 Assignment Processing
-        - Upload PDF assignments
-        - Automatic text extraction
-        - Multi-page support
-        """)
-        
-        st.markdown("""
         ### 📊 Student Analytics
         - Track performance trends
         - Visual progress reports
         - Detailed feedback history
+        """)
+        
+        st.markdown("""
+        ### 🗓️ Smart Calendar
+        - Lesson scheduling
+        - Assignment tracking
+        - Event reminders
         """)
     
     with col2:
@@ -66,25 +65,25 @@ def show_home_page():
     st.divider()
     st.subheader("🚀 Getting Started")
     
-    tab1, tab2, tab3 = st.tabs(["Upload", "Grade", "Analyze"])
+    tab1, tab2, tab3 = st.tabs(["Grade", "Analyze", "Plan"])
     
     with tab1:
         st.markdown("""
-        1. Click on **Upload Assignment** in the sidebar
-        2. Choose a PDF file
-        3. Wait for text extraction
+        1. Navigate to **Grading**
+        2. Select a subject
+        3. Get AI-powered feedback
         """)
     
     with tab2:
         st.markdown("""
-        1. Navigate to **Grading**
-        2. Select a subject (optional)
-        3. Get AI-powered feedback
+        1. View **Student Analysis**
+        2. Track performance trends
+        3. Export reports
         """)
     
     with tab3:
         st.markdown("""
-        1. View **Student Analysis**
-        2. Track performance trends
-        3. Export reports
+        1. Check **Calendar**
+        2. Schedule lessons
+        3. Set reminders
         """)

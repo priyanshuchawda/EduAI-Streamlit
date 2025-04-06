@@ -119,14 +119,12 @@ show_calendar_sidebar()
 st.sidebar.title("🎓 EduAI Assistant")
 page = st.sidebar.radio(
     "Navigate to:",
-    ["Home", "Assignment Upload", "Grading", "Analysis", "Calendar", "Syllabus", "PYQ Analysis", "Teacher Chat"]
+    ["Home", "Grading", "Analysis", "Calendar", "Syllabus", "PYQ Analysis", "Teacher Chat"]
 )
 
 # Route to appropriate page based on navigation
 if page == "Home":
     show_home_page()
-elif page == "Assignment Upload":
-    show_upload_page()
 elif page == "Grading":
     show_grading_page()
 elif page == "Analysis":

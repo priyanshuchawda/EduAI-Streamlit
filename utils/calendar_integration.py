@@ -24,37 +24,24 @@ SCOPES = [
 ]
 
 def get_calendar_credentials():
-    """Get Google Calendar credentials using service account or OAuth"""
-    if hasattr(st, 'secrets') and 'GOOGLE_APPLICATION_CREDENTIALS' in st.secrets:
-        # We're on Streamlit Cloud, use service account
-        try:
-            credentials_info = json.loads(st.secrets['GOOGLE_APPLICATION_CREDENTIALS'])
-            creds = ServiceAccountCredentials.from_service_account_info(
-                credentials_info,
-                scopes=SCOPES
-            )
-            return creds
-        except Exception as e:
-            st.error(f"Failed to load service account credentials: {str(e)}")
-            raise
+    """Get Google Calendar credentials using OAuth 2.0"""
+    if hasattr(st, 'secrets'):
+        # We're on Streamlit Cloud
+        calendar_config = st.secrets["GOOGLE_CALENDAR"]
+        
+        client_config = {
+            "installed": {
+                "client_id": calendar_config["CLIENT_ID"],
+                "project_id": calendar_config["PROJECT_ID"],
+                "auth_uri": calendar_config["AUTH_URI"],
+                "token_uri": calendar_config["TOKEN_URI"],
+                "auth_provider_x509_cert_url": calendar_config["AUTH_PROVIDER_CERT_URL"],
+                "client_secret": calendar_config["CLIENT_SECRET"],
+                "redirect_uris": [calendar_config["REDIRECT_URIS"]]
+            }
+        }
     else:
-        # We're running locally, use OAuth flow
-        if 'calendar_creds' in st.session_state and st.session_state.calendar_creds:
-            creds = st.session_state.calendar_creds
-            if creds.valid:
-                return creds
-            if creds.expired and creds.refresh_token:
-                try:
-                    creds.refresh(Request())
-                    st.session_state.calendar_creds = creds
-                    return creds
-                except Exception:
-                    del st.session_state.calendar_creds
-
-        # Start new OAuth flow for local development
-        if 'oauth_state' not in st.session_state:
-            st.session_state.oauth_state = os.urandom(16).hex()
-
+        # We're running locally
         client_config = {
             "installed": {
                 "client_id": os.getenv('GOOGLE_CALENDAR_CLIENT_ID'),
@@ -67,18 +54,40 @@ def get_calendar_credentials():
             }
         }
 
-        try:
-            flow = InstalledAppFlow.from_client_config(
-                client_config,
-                SCOPES,
-                state=st.session_state.oauth_state
-            )
-            creds = flow.run_local_server(port=8080)
-            st.session_state.calendar_creds = creds
-            return creds
-        except Exception as e:
-            st.error(f"Error in authorization flow: {e}")
-            raise
+    try:
+        # Check if we have valid credentials in session state
+        if 'calendar_creds' in st.session_state and st.session_state.calendar_creds:
+            creds = st.session_state.calendar_creds
+            if creds.valid:
+                return creds
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                st.session_state.calendar_creds = creds
+                return creds
+
+        # Initialize OAuth flow
+        if 'oauth_state' not in st.session_state:
+            st.session_state.oauth_state = os.urandom(16).hex()
+
+        flow = InstalledAppFlow.from_client_config(
+            client_config,
+            SCOPES,
+            state=st.session_state.oauth_state
+        )
+        
+        creds = flow.run_local_server(port=8080)
+        st.session_state.calendar_creds = creds
+        return creds
+        
+    except Exception as e:
+        st.error(f"⚠️ Failed to get calendar credentials: {str(e)}")
+        raise
+
+def get_calendar_id():
+    """Get the calendar ID from environment or secrets"""
+    if hasattr(st, 'secrets'):
+        return st.secrets["GOOGLE_CALENDAR"]["CALENDAR_ID"]
+    return os.getenv('GOOGLE_CALENDAR_ID')
 
 def get_free_time_slots(start_datetime=None, end_datetime=None):
     """Get available time slots for the specified date range"""
@@ -111,7 +120,7 @@ def get_free_time_slots(start_datetime=None, end_datetime=None):
             "timeMax": end_datetime.isoformat(),
             "items": [
                 {"id": "primary"},
-                {"id": os.getenv('GOOGLE_CALENDAR_ID')}
+                {"id": get_calendar_id()}
             ]
         }
         
@@ -121,8 +130,8 @@ def get_free_time_slots(start_datetime=None, end_datetime=None):
         busy_periods = []
         if 'primary' in eventsResult['calendars']:
             busy_periods.extend(eventsResult['calendars']['primary']['busy'])
-        if os.getenv('GOOGLE_CALENDAR_ID') in eventsResult['calendars']:
-            busy_periods.extend(eventsResult['calendars'][os.getenv('GOOGLE_CALENDAR_ID')]['busy'])
+        if get_calendar_id() in eventsResult['calendars']:
+            busy_periods.extend(eventsResult['calendars'][get_calendar_id()]['busy'])
         
         # Convert busy periods to timezone-aware datetime objects
         busy_slots = []

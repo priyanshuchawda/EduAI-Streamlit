@@ -12,9 +12,45 @@ root_path = str(Path(__file__).parent)
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
+def check_required_secrets():
+    """Check if all required secrets are available"""
+    required_secrets = [
+        'GEMINI_API_KEY',
+        'GOOGLE_SHEETS_SPREADSHEET_ID',
+        'GOOGLE_APPLICATION_CREDENTIALS'
+    ]
+    
+    missing_secrets = []
+    if hasattr(st, 'secrets'):
+        for secret in required_secrets:
+            if secret not in st.secrets:
+                missing_secrets.append(secret)
+    
+    if missing_secrets:
+        st.error("⚠️ Missing Required Configuration")
+        st.markdown("""
+        The following configuration values are missing:
+        """)
+        for secret in missing_secrets:
+            st.markdown(f"- `{secret}`")
+        
+        st.markdown("""
+        ### How to Fix:
+        1. Go to your Streamlit Cloud dashboard
+        2. Click on your app
+        3. Go to 'Settings' > 'Secrets'
+        4. Add the missing configuration values
+        
+        For local development, add these values to your `.env` file.
+        """)
+        st.stop()
+
 # Handle environment variables and secrets
 def setup_environment():
     """Setup environment variables from Streamlit secrets or .env file"""
+    # Check for required secrets first
+    check_required_secrets()
+    
     if hasattr(st, 'secrets'):
         # We're on Streamlit Cloud, use secrets
         os.environ['GEMINI_API_KEY'] = st.secrets['GEMINI_API_KEY']

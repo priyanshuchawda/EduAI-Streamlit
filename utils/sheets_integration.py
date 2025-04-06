@@ -38,6 +38,8 @@ def get_google_sheets_client():
 
         creds = Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
         return gspread.authorize(creds)
+    except Exception as e:
+        raise Exception(f"Error initializing Google Sheets client: {str(e)}")
 
 def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:
     """Get or create a sheet for the student"""

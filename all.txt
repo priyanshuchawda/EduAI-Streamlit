@@ -1,0 +1,138 @@
+🎓 EduAI Assistant - Project Overview
+
+EduAI Assistant is a comprehensive educational management system with AI-powered features for teachers and educators. Here's a breakdown of each main component:
+
+1. 📝 Grading Tab
+- AI-powered assignment grading from PDF uploads
+- Detailed feedback with strengths and weaknesses
+- Subject-specific evaluation criteria
+- Automatic score calculation and grade assignment
+- Question-by-question analysis
+- Results saved to Google Sheets for tracking
+
+2. 📊 Analysis Tab
+- Student performance tracking across subjects
+- Visual performance trends and charts
+- Subject-wise detailed analysis
+- Assessment history with sorting options
+- Skills analysis with radar charts
+- Personalized improvement plans
+- Predicted scores and learning strategies
+
+3. 📅 Calendar Tab
+- Interactive calendar interface
+- Event scheduling and management
+- Google Calendar integration
+- Upcoming events display
+- Color-coded events
+- Day/week/month views
+- Event reminders and tracking
+
+4. 📚 Syllabus Tab
+- Syllabus management with topic tracking
+- AI-powered lesson scheduling
+- Topic distribution planning
+- Progress tracking for each subject
+- Recurring schedule setup
+- Integration with calendar for class scheduling
+- Duration and completion status tracking
+
+5. 📖 PYQ Analysis Tab (Previous Year Questions)
+- Question pattern analysis
+- Topic distribution visualization
+- Practice question generation
+- Difficulty level analysis
+- Exam preparation guides
+- Time management suggestions
+- Topic-wise importance tracking
+
+6. 👩‍🏫 Teacher Chat Tab
+- AI-powered teaching assistant
+- Context-aware responses
+- Teaching strategies suggestions
+- Resource recommendations
+- Lesson planning assistance
+- Classroom management tips
+- Educational best practices
+
+Overall Project Features:
+- Seamless integration between all components
+- Google Services integration (Sheets, Calendar)
+- AI-powered analysis and suggestions
+- Data-driven insights
+- Visual analytics and reporting
+- User-friendly interface
+- Real-time updates and tracking
+- Multi-subject support
+- Comprehensive student progress monitoring
+- Automated workflow for teachers
+
+Tech Stack Overview:
+
+1. 📝 Grading Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Google Gemini AI for grading analysis
+- PyPDF2 for PDF processing
+- Pydantic for data validation
+- Google Sheets API for data storage
+- Plotly for visualization
+
+2. 📊 Analysis Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Pandas for data analysis
+- Plotly for interactive charts
+- NumPy for numerical computations
+- Google Sheets API for data storage
+- Pydantic for data modeling
+
+3. 📅 Calendar Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Google Calendar API for event management
+- Datetime module for date handling
+- JSON for data storage
+- Google OAuth2 for authentication
+
+4. 📚 Syllabus Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Pandas for data management
+- Google Sheets API for syllabus storage
+- Google Gemini AI for lesson planning
+- Google Calendar API for scheduling
+- JSON for configuration
+
+5. 📖 PYQ Analysis Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Google Gemini AI for question analysis
+- Matplotlib for visualizations
+- Pandas for data processing
+- PyPDF2 for PDF parsing
+- JSON for data storage
+
+6. 👩‍🏫 Teacher Chat Tab
+Tech Stack:
+- Python/Streamlit for UI
+- Google Gemini AI for chat responses
+- JSON for context storage
+- Google OAuth2 for authentication
+- Session state management
+
+Core Technologies:
+- Backend: Python 3.11
+- Frontend Framework: Streamlit
+- AI/ML: Google Gemini AI
+- Database: Google Sheets (as database)
+- Authentication: Google OAuth2
+- Version Control: Git
+- APIs: Google Calendar, Google Sheets
+- Data Processing: Pandas, NumPy
+- Visualization: Plotly, Matplotlib
+- File Processing: PyPDF2
+- Data Validation: Pydantic
+- Environment: Python Virtual Environment
+- Dependencies: requirements.txt
+- Configuration: JSON, Environment Variables

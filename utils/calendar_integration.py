@@ -10,6 +10,8 @@ from googleapiclient.errors import HttpError
 import json
 import pytz
 from dotenv import load_dotenv
+import os
+import streamlit as st
 
 # Load environment variables
 load_dotenv()
@@ -24,27 +26,72 @@ SCOPES = [
 AI_CALENDAR_ID = os.getenv('GOOGLE_CALENDAR_ID')
 
 def get_calendar_credentials():
-    """Get Google Calendar credentials using service account"""
-    try:
-        # Create credentials dict from environment variables
-        credentials_info = {
-            "type": os.getenv('GOOGLE_TYPE'),
-            "project_id": os.getenv('GOOGLE_PROJECT_ID'),
-            "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
-            "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
-            "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
-            "client_id": os.getenv('GOOGLE_CLIENT_ID'),
-            "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
-            "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
-            "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
-            "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL')
+    """Get Google Calendar credentials using OAuth 2.0 with offline access"""
+    # Check if credentials are already in session state
+    if 'calendar_creds' in st.session_state and st.session_state.calendar_creds:
+        creds = st.session_state.calendar_creds
+        if creds.valid:
+            return creds
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                st.session_state.calendar_creds = creds
+                return creds
+            except Exception:
+                del st.session_state.calendar_creds
+    
+    # If no valid credentials in session, check token file
+    if os.path.exists('token.json'):
+        try:
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            if creds and creds.valid:
+                st.session_state.calendar_creds = creds
+                return creds
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                st.session_state.calendar_creds = creds
+                return creds
+        except Exception as e:
+            if os.path.exists('token.json'):
+                os.remove('token.json')
+    
+    # No valid credentials found, start new OAuth flow
+    if 'oauth_state' not in st.session_state:
+        st.session_state.oauth_state = os.urandom(16).hex()
+    
+    client_config = {
+        "installed": {
+            "client_id": os.getenv('GOOGLE_CALENDAR_CLIENT_ID'),
+            "project_id": os.getenv('GOOGLE_CALENDAR_PROJECT_ID'),
+            "auth_uri": os.getenv('GOOGLE_CALENDAR_AUTH_URI'),
+            "token_uri": os.getenv('GOOGLE_CALENDAR_TOKEN_URI'),
+            "auth_provider_x509_cert_url": os.getenv('GOOGLE_CALENDAR_AUTH_PROVIDER_CERT_URL'),
+            "client_secret": os.getenv('GOOGLE_CALENDAR_CLIENT_SECRET'),
+            "redirect_uris": [os.getenv('GOOGLE_CALENDAR_REDIRECT_URIS')]
         }
+    }
+    
+    try:
+        flow = InstalledAppFlow.from_client_config(
+            client_config,
+            SCOPES,
+            state=st.session_state.oauth_state
+        )
+        creds = flow.run_local_server(
+            port=8080,
+            access_type='offline',
+            state=st.session_state.oauth_state
+        )
         
-        creds = ServiceAccountCredentials.from_service_account_info(credentials_info, scopes=SCOPES)
+        # Save credentials
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+        st.session_state.calendar_creds = creds
         return creds
         
     except Exception as e:
-        raise Exception(f"Error with calendar credentials: {str(e)}")
+        print(f"Error in authorization flow: {e}")
+        raise Exception(f"Failed to get calendar credentials: {str(e)}")
 
 def get_free_time_slots(start_datetime=None, end_datetime=None):
     """Get available time slots for the specified date range"""
@@ -263,15 +310,14 @@ def format_event(event):
 
 def is_calendar_configured():
     """Check if calendar credentials are properly configured"""
-    return all([
-        os.getenv('GOOGLE_TYPE'),
-        os.getenv('GOOGLE_PROJECT_ID'),
-        os.getenv('GOOGLE_PRIVATE_KEY_ID'),
-        os.getenv('GOOGLE_PRIVATE_KEY'),
-        os.getenv('GOOGLE_CLIENT_EMAIL'),
-        os.getenv('GOOGLE_CLIENT_ID'),
-        os.getenv('GOOGLE_AUTH_URI'),
-        os.getenv('GOOGLE_TOKEN_URI'),
-        os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
-        os.getenv('GOOGLE_CLIENT_CERT_URL')
-    ])
+    required_vars = [
+        'GOOGLE_CALENDAR_CLIENT_ID',
+        'GOOGLE_CALENDAR_CLIENT_SECRET',
+        'GOOGLE_CALENDAR_PROJECT_ID',
+        'GOOGLE_CALENDAR_AUTH_URI',
+        'GOOGLE_CALENDAR_TOKEN_URI',
+        'GOOGLE_CALENDAR_AUTH_PROVIDER_CERT_URL',
+        'GOOGLE_CALENDAR_REDIRECT_URIS',
+        'GOOGLE_CALENDAR_ID'
+    ]
+    return all(os.getenv(var) for var in required_vars)

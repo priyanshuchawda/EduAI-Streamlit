@@ -1,7 +1,5 @@
 import os
 import json
-import base64
-import fitz  # PyMuPDF for better PDF handling
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -11,186 +9,145 @@ from typing import Dict, Any
 load_dotenv()
 
 def process_pdf_with_gemini(pdf_path: str) -> Dict[str, Any]:
-    """
-    Process PDF with enhanced text extraction and formatting.
-    Handles both typed and handwritten content with improved structure.
-    """
+    """Process PDF with enhanced learning analysis"""
     try:
         # Initialize the Gemini client
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
-        # Enhanced prompt for better text extraction with explicit JSON response requirement
-        processing_prompt = """You are a PDF content processor. Your task is to extract and structure ALL content from this PDF document, including every page.
+        # Upload the PDF file to Gemini
+        document_file = client.files.upload(file=pdf_path)
+        
+        # Enhanced learning-focused prompt
+        processing_prompt = """Analyze this document comprehensively and return a detailed JSON response with the following structure:
 
-        CRITICAL REQUIREMENTS:
-        1. You MUST return your response in valid JSON format ONLY
-        2. Process and include content from ALL pages
-        3. Analyze the content type (handwriting vs typed)
-        4. Identify the subject area and main topic
-        5. Structure the content logically by page
-        6. Format any mathematical content properly
-        7. Extract teacher's notes and comments exactly as written
-        8. Maintain page separation in the output
-
-        Return ONLY a JSON object with this EXACT structure (no other text):
         {
-            "title": "exact main title from document or clear topic description",
-            "metadata": {
-                "type": "typed/handwritten/mixed",
-                "subject_area": "math/science/english/etc",
-                "content_quality": "clear/legible/partially legible/etc",
-                "total_pages": "number of pages"
+            "title": "Main document title",
+            "main_topics": {
+                "theoretical_concepts": ["concept1", "concept2"],
+                "formulas": ["formula1", "formula2"]
             },
-            "original_notes": {
-                "teacher_comments": ["exact comment 1", "exact comment 2"],
-                "margin_notes": ["note 1", "note 2"],
-                "corrections": ["correction 1", "correction 2"]
+            "learning_analysis": {
+                "difficulty_level": "Beginner/Intermediate/Advanced",
+                "prerequisites": ["prereq1", "prereq2"],
+                "study_tips": ["tip1", "tip2"],
+                "common_misconceptions": ["misconception1", "misconception2"]
             },
-            "pages": [
+            "content_breakdown": [
                 {
-                    "page_number": 1,
-                    "sections": [
+                    "title": "Section title",
+                    "analysis": "Detailed analysis",
+                    "examples": [
                         {
-                            "heading": "clear section name",
-                            "content": "formatted text content with proper spacing and line breaks",
-                            "equations": ["equation 1", "equation 2"],
-                            "key_points": ["key point 1", "key point 2"]
+                            "title": "Example title",
+                            "problem": "Problem statement",
+                            "solution": "Step-by-step solution",
+                            "explanation": "Detailed explanation"
                         }
-                    ]
+                    ],
+                    "key_points": ["point1", "point2"]
                 }
             ],
-            "summary": "comprehensive content overview",
-            "notes": ["important note 1", "important note 2"]
+            "practice_material": {
+                "exercises": [
+                    {
+                        "question": "Exercise question",
+                        "hint": "Optional hint",
+                        "solution": "Complete solution"
+                    }
+                ],
+                "common_mistakes": ["mistake1", "mistake2"]
+            },
+            "additional_resources": {
+                "related_topics": ["topic1", "topic2"],
+                "reference_materials": ["reference1", "reference2"]
+            },
+            "summary": "Overall document summary",
+            "key_takeaways": ["takeaway1", "takeaway2"],
+            "notes": ["important note1", "important note2"]
         }
 
-        For handwritten content:
-        - Clean up messy handwriting
-        - Fix spelling/grammar while preserving meaning
-        - Format equations properly
-        - Maintain original structure
-        - Preserve teacher's annotations exactly as written
+        Instructions:
+        1. Extract and organize all content according to this structure
+        2. Identify main concepts and formulas
+        3. Provide detailed analysis of each section
+        4. Include practice exercises with solutions
+        5. Add learning tips and common misconceptions
+        6. Suggest related topics and resources
+        7. Keep mathematical formulas in proper LaTeX format
 
-        IMPORTANT: Process ALL pages and include ALL content in your response."""
-
-        # Read and process the PDF file using PyMuPDF for better handling
-        pdf_document = fitz.open(pdf_path)
-        pdf_content = ""
-        
-        # Extract text from all pages
-        for page_num in range(pdf_document.page_count):
-            page = pdf_document[page_num]
-            pdf_content += f"\n=== Page {page_num + 1} ===\n"
-            pdf_content += page.get_text()
-        
-        # Convert to bytes for Gemini
-        pdf_bytes = pdf_document.tobytes()
-        pdf_document.close()
-        
-        # Create parts array for the request
-        parts = [
-            {"text": processing_prompt},
-            {
-                "inline_data": {
-                    "mime_type": "application/pdf",
-                    "data": base64.b64encode(pdf_bytes).decode('utf-8')
-                }
-            }
-        ]
+        Your response must be valid JSON.
+        """
         
         # Generate content using the uploaded PDF
         response = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=[{
-                "role": "user",
-                "parts": parts
-            }],
+            contents=[processing_prompt, document_file],
             config=types.GenerateContentConfig(
-                temperature=0.1,  # Lower temperature for more consistent formatting
+                temperature=0.1,
                 top_p=0.95,
                 top_k=40,
-                max_output_tokens=30000,  # Increased for multi-page documents
-                response_mime_type="application/json"  # Enforce JSON response
+                max_output_tokens=8192
             )
         )
         
-        if response and response.text:
-            try:
-                # Remove any non-JSON text that might be in the response
-                json_str = response.text.strip()
-                # Find the first { and last } to extract just the JSON object
-                start = json_str.find('{')
-                end = json_str.rfind('}') + 1
-                if start >= 0 and end > start:
-                    json_str = json_str[start:end]
-                
-                # Parse the JSON response
-                result = json.loads(json_str)
-                
-                # Validate required fields
-                if not result.get('title'):
-                    result['title'] = "Untitled Document"
-                if not result.get('metadata'):
-                    result['metadata'] = {
-                        "type": "mixed",
-                        "subject_area": "general",
-                        "content_quality": "processed",
-                        "total_pages": 1
+        if not response or not response.text:
+            raise Exception("No response from Gemini")
+            
+        try:
+            # Clean and parse the JSON response
+            json_str = response.text.strip()
+            start = json_str.find('{')
+            end = json_str.rfind('}') + 1
+            if start >= 0 and end > start:
+                json_str = json_str[start:end]
+            
+            result = json.loads(json_str)
+            
+            # Ensure minimum required structure with learning focus
+            if not isinstance(result, dict):
+                result = {
+                    "title": "Document Analysis",
+                    "content": str(result),
+                    "learning_analysis": {
+                        "difficulty_level": "Not analyzed",
+                        "prerequisites": [],
+                        "study_tips": []
                     }
-                result['metadata']['total_pages'] = pdf_document.page_count
-                
-                if not result.get('original_notes'):
-                    result['original_notes'] = {
-                        "teacher_comments": [],
-                        "margin_notes": [],
-                        "corrections": []
-                    }
-                    
-                # Ensure pages array exists and has correct structure
-                if not result.get('pages'):
-                    # Create default page structure
-                    result['pages'] = []
-                    for page_num in range(pdf_document.page_count):
-                        result['pages'].append({
-                            "page_number": page_num + 1,
-                            "sections": [{
-                                "heading": f"Page {page_num + 1} Content",
-                                "content": f"Content from page {page_num + 1}",
-                                "equations": [],
-                                "key_points": []
-                            }]
-                        })
-                
-                return result
-                
-            except json.JSONDecodeError as e:
-                # Create a structured response from unstructured text
-                return {
-                    "title": "Processed Document",
-                    "metadata": {
-                        "type": "processed",
-                        "subject_area": "general",
-                        "content_quality": "processed",
-                        "total_pages": pdf_document.page_count
-                    },
-                    "original_notes": {
-                        "teacher_comments": [],
-                        "margin_notes": [],
-                        "corrections": []
-                    },
-                    "pages": [{
-                        "page_number": i + 1,
-                        "sections": [{
-                            "heading": f"Page {i + 1} Content",
-                            "content": f"Content from page {i + 1}",
-                            "equations": [],
-                            "key_points": []
-                        }]
-                    } for i in range(pdf_document.page_count)],
-                    "summary": "Document has been processed and content extracted",
-                    "notes": []
                 }
-        else:
-            raise Exception("No text extracted from PDF")
+            
+            # Add default learning sections if missing
+            if "learning_analysis" not in result:
+                result["learning_analysis"] = {
+                    "difficulty_level": "Not analyzed",
+                    "prerequisites": [],
+                    "study_tips": []
+                }
+            
+            if "practice_material" not in result:
+                result["practice_material"] = {
+                    "examples": [],
+                    "exercises": [],
+                    "common_mistakes": []
+                }
+            
+            if "additional_resources" not in result:
+                result["additional_resources"] = {
+                    "related_topics": [],
+                    "reference_materials": []
+                }
+                
+            return result
+            
+        except json.JSONDecodeError:
+            return {
+                "title": "Document Analysis",
+                "content": response.text,
+                "learning_analysis": {
+                    "difficulty_level": "Not analyzed",
+                    "prerequisites": [],
+                    "study_tips": []
+                }
+            }
             
     except Exception as e:
         raise Exception(f"Error processing PDF with Gemini: {str(e)}")

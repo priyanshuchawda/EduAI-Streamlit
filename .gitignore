@@ -57,3 +57,19 @@ token.pickle
 *.csv
 *.tsv
 *.json
+swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+env/
+# Environment variables
+.env
+*.env
+
+# Google credentials
+*.json
+!package.json
+
+

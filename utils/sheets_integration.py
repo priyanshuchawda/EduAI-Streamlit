@@ -5,11 +5,12 @@ from typing import Dict, List, Any
 import os
 import json
 from datetime import datetime, date
-import os.path
+import streamlit as st
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables only if not in Streamlit Cloud
+if not hasattr(st, 'secrets'):
+    load_dotenv()
 
 def get_google_sheets_client():
     """Initialize and return Google Sheets client"""
@@ -19,30 +20,24 @@ def get_google_sheets_client():
     ]
     
     try:
-        spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        if not spreadsheet_id:
-            raise Exception("Missing GOOGLE_SHEETS_SPREADSHEET_ID in .env file")
+        if hasattr(st, 'secrets'):
+            credentials_info = json.loads(st.secrets['GOOGLE_APPLICATION_CREDENTIALS'])
+        else:
+            credentials_info = {
+                "type": os.getenv('GOOGLE_TYPE'),
+                "project_id": os.getenv('GOOGLE_PROJECT_ID'),
+                "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+                "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
+                "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
+                "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+                "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
+                "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
+                "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
+                "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL')
+            }
 
-        # Create credentials dict from environment variables
-        credentials_info = {
-            "type": os.getenv('GOOGLE_TYPE'),
-            "project_id": os.getenv('GOOGLE_PROJECT_ID'),
-            "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
-            "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
-            "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
-            "client_id": os.getenv('GOOGLE_CLIENT_ID'),
-            "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
-            "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
-            "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
-            "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL')
-        }
-        
         creds = Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
         return gspread.authorize(creds)
-        
-    except Exception as e:
-        print(f"Detailed error: {str(e)}")
-        raise Exception(f"Error loading credentials: {str(e)}")
 
 def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:
     """Get or create a sheet for the student"""

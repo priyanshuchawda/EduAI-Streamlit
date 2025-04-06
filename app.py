@@ -12,55 +12,32 @@ root_path = str(Path(__file__).parent)
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
-def check_required_secrets():
-    """Check if all required secrets are available"""
-    required_secrets = [
-        'GEMINI_API_KEY',
-        'GOOGLE_SHEETS_SPREADSHEET_ID',
-        'GOOGLE_APPLICATION_CREDENTIALS'
-    ]
-    
-    missing_secrets = []
-    if hasattr(st, 'secrets'):
-        for secret in required_secrets:
-            if secret not in st.secrets:
-                missing_secrets.append(secret)
-    
-    if missing_secrets:
-        st.error("⚠️ Missing Required Configuration")
-        st.markdown("""
-        The following configuration values are missing:
-        """)
-        for secret in missing_secrets:
-            st.markdown(f"- `{secret}`")
-        
-        st.markdown("""
-        ### How to Fix:
-        1. Go to your Streamlit Cloud dashboard
-        2. Click on your app
-        3. Go to 'Settings' > 'Secrets'
-        4. Add the missing configuration values
-        
-        For local development, add these values to your `.env` file.
-        """)
-        st.stop()
-
-# Handle environment variables and secrets
 def setup_environment():
     """Setup environment variables from Streamlit secrets or .env file"""
-    # Check for required secrets first
-    check_required_secrets()
-    
     if hasattr(st, 'secrets'):
         # We're on Streamlit Cloud, use secrets
-        os.environ['GEMINI_API_KEY'] = st.secrets['GEMINI_API_KEY']
+        for key, value in st.secrets.items():
+            os.environ[key] = str(value)
+            
+        # Special handling for the service account credentials
+        service_account_keys = {
+            "type": "service_account",
+            "project_id": os.environ.get("GOOGLE_PROJECT_ID"),
+            "private_key_id": os.environ.get("GOOGLE_PRIVATE_KEY_ID"),
+            "private_key": os.environ.get("GOOGLE_PRIVATE_KEY"),
+            "client_email": os.environ.get("GOOGLE_CLIENT_EMAIL"),
+            "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+            "auth_uri": os.environ.get("GOOGLE_AUTH_URI"),
+            "token_uri": os.environ.get("GOOGLE_TOKEN_URI"),
+            "auth_provider_x509_cert_url": os.environ.get("GOOGLE_AUTH_PROVIDER_CERT_URL"),
+            "client_x509_cert_url": os.environ.get("GOOGLE_CLIENT_CERT_URL"),
+            "universe_domain": os.environ.get("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")
+        }
         
-        # Create temporary credentials file from secrets
-        if 'GOOGLE_APPLICATION_CREDENTIALS' in st.secrets:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                json.dump(json.loads(st.secrets['GOOGLE_APPLICATION_CREDENTIALS']), f)
-                os.environ['GOOGLE_CREDENTIALS_PATH'] = f.name
-                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+        # Create temporary credentials file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(service_account_keys, f)
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
     else:
         # We're running locally, use python-dotenv
         from dotenv import load_dotenv

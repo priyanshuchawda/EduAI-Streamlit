@@ -80,6 +80,23 @@ An intelligent teaching assistant powered by Google's Gemini AI
    ```
 4. Run the application: `streamlit run app.py`
 
+## Deployment on Streamlit Cloud
+
+1. Fork this repository to your GitHub account
+2. Go to [Streamlit Cloud](https://streamlit.io/cloud)
+3. Click "New app" and select this repository
+4. Set the following environment variables in Streamlit Cloud settings:
+   - GEMINI_API_KEY
+   - GOOGLE_CREDENTIALS_PATH
+   - GOOGLE_APPLICATION_CREDENTIALS
+5. Deploy the app
+
+### Required Environment Variables
+
+- `GEMINI_API_KEY`: Your Google Gemini API key
+- `GOOGLE_CREDENTIALS_PATH`: Path to Google Cloud credentials JSON
+- `GOOGLE_APPLICATION_CREDENTIALS`: Full Google Cloud service account JSON
+
 ## Key Innovations
 1. Advanced AI-powered assignment grading with subject-specific criteria
 2. Smart syllabus management with AI-suggested topic distribution

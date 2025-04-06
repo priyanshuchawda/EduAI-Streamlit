@@ -12,6 +12,27 @@ root_path = str(Path(__file__).parent)
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
+# Handle environment variables and secrets
+def setup_environment():
+    """Setup environment variables from Streamlit secrets or .env file"""
+    if hasattr(st, 'secrets'):
+        # We're on Streamlit Cloud, use secrets
+        os.environ['GEMINI_API_KEY'] = st.secrets['GEMINI_API_KEY']
+        
+        # Create temporary credentials file from secrets
+        if 'GOOGLE_APPLICATION_CREDENTIALS' in st.secrets:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                json.dump(json.loads(st.secrets['GOOGLE_APPLICATION_CREDENTIALS']), f)
+                os.environ['GOOGLE_CREDENTIALS_PATH'] = f.name
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = f.name
+    else:
+        # We're running locally, use python-dotenv
+        from dotenv import load_dotenv
+        load_dotenv()
+
+# Setup environment before importing other modules
+setup_environment()
+
 # Import configurations from the new structure
 from src.config import APP_CONFIG, CUSTOM_CSS
 from src.config.client import client, model

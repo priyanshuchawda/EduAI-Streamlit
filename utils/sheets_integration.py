@@ -21,33 +21,56 @@ def get_google_sheets_client():
     
     try:
         # Get credentials info from environment or secrets
-        credentials_info = {
-            "type": st.secrets.get("GOOGLE_TYPE", os.getenv("GOOGLE_TYPE")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_TYPE"),
-            "project_id": st.secrets.get("GOOGLE_PROJECT_ID", os.getenv("GOOGLE_PROJECT_ID")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_PROJECT_ID"),
-            "private_key_id": st.secrets.get("GOOGLE_PRIVATE_KEY_ID", os.getenv("GOOGLE_PRIVATE_KEY_ID")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_PRIVATE_KEY_ID"),
-            "private_key": st.secrets.get("GOOGLE_PRIVATE_KEY", os.getenv("GOOGLE_PRIVATE_KEY")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_PRIVATE_KEY"),
-            "client_email": st.secrets.get("GOOGLE_CLIENT_EMAIL", os.getenv("GOOGLE_CLIENT_EMAIL")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_CLIENT_EMAIL"),
-            "client_id": st.secrets.get("GOOGLE_CLIENT_ID", os.getenv("GOOGLE_CLIENT_ID")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_CLIENT_ID"),
-            "auth_uri": st.secrets.get("GOOGLE_AUTH_URI", os.getenv("GOOGLE_AUTH_URI")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_AUTH_URI"),
-            "token_uri": st.secrets.get("GOOGLE_TOKEN_URI", os.getenv("GOOGLE_TOKEN_URI")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_TOKEN_URI"),
-            "auth_provider_x509_cert_url": st.secrets.get("GOOGLE_AUTH_PROVIDER_CERT_URL", os.getenv("GOOGLE_AUTH_PROVIDER_CERT_URL")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_AUTH_PROVIDER_CERT_URL"),
-            "client_x509_cert_url": st.secrets.get("GOOGLE_CLIENT_CERT_URL", os.getenv("GOOGLE_CLIENT_CERT_URL")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_CLIENT_CERT_URL"),
-            "universe_domain": st.secrets.get("GOOGLE_UNIVERSE_DOMAIN", os.getenv("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")) if hasattr(st, 'secrets') else os.getenv("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")
-        }
-        
-        # Validate that all required fields are present
-        required_fields = ["type", "project_id", "private_key_id", "private_key", "client_email"]
-        missing_fields = [field for field in required_fields if not credentials_info.get(field)]
-        
-        if missing_fields:
-            raise Exception(f"Missing required Google credentials fields: {', '.join(missing_fields)}")
+        if hasattr(st, 'secrets'):
+            # We're on Streamlit Cloud, use structured secrets
+            creds_config = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]
+            credentials_info = {
+                "type": creds_config["TYPE"],
+                "project_id": creds_config["PROJECT_ID"],
+                "private_key_id": creds_config["PRIVATE_KEY_ID"],
+                "private_key": creds_config["PRIVATE_KEY"],
+                "client_email": creds_config["CLIENT_EMAIL"],
+                "client_id": creds_config["CLIENT_ID"],
+                "auth_uri": creds_config["AUTH_URI"],
+                "token_uri": creds_config["TOKEN_URI"],
+                "auth_provider_x509_cert_url": creds_config["AUTH_PROVIDER_CERT_URL"],
+                "client_x509_cert_url": creds_config["CLIENT_CERT_URL"],
+                "universe_domain": creds_config.get("UNIVERSE_DOMAIN", "googleapis.com")
+            }
+            spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"]
+        else:
+            # We're running locally, use environment variables
+            credentials_info = {
+                "type": os.getenv('GOOGLE_TYPE'),
+                "project_id": os.getenv('GOOGLE_PROJECT_ID'),
+                "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
+                "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
+                "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
+                "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+                "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
+                "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
+                "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
+                "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL'),
+                "universe_domain": os.getenv('GOOGLE_UNIVERSE_DOMAIN', "googleapis.com")
+            }
+            spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
+
+        if not spreadsheet_id:
+            raise Exception("Missing GOOGLE_SHEETS_SPREADSHEET_ID in configuration")
             
-        # Clean up private key if needed (replace escaped newlines with actual newlines)
+        # Clean up private key if needed (replace escaped newlines)
         if credentials_info["private_key"] and "\\n" in credentials_info["private_key"]:
             credentials_info["private_key"] = credentials_info["private_key"].replace("\\n", "\n")
+            
+        # Validate required fields
+        required_fields = ["type", "project_id", "private_key_id", "private_key", "client_email"]
+        missing_fields = [field for field in required_fields if not credentials_info.get(field)]
+        if missing_fields:
+            raise Exception(f"Missing required Google credentials fields: {', '.join(missing_fields)}")
 
         creds = Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
         return gspread.authorize(creds)
+        
     except Exception as e:
         st.error("⚠️ Failed to initialize Google Sheets client. Please check your credentials.")
         raise Exception(f"Error initializing Google Sheets client: {str(e)}")

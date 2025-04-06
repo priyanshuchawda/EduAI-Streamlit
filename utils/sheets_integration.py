@@ -20,46 +20,12 @@ def get_google_sheets_client():
     ]
     
     try:
-        # Get credentials info from environment or secrets
-        if hasattr(st, 'secrets'):
-            # We're on Streamlit Cloud, use direct secrets
-            credentials_info = {
-                "type": st.secrets["GOOGLE_TYPE"],
-                "project_id": st.secrets["GOOGLE_PROJECT_ID"],
-                "private_key_id": st.secrets["GOOGLE_PRIVATE_KEY_ID"],
-                "private_key": st.secrets["GOOGLE_PRIVATE_KEY"],
-                "client_email": st.secrets["GOOGLE_CLIENT_EMAIL"],
-                "client_id": st.secrets["GOOGLE_CLIENT_ID"],
-                "auth_uri": st.secrets["GOOGLE_AUTH_URI"],
-                "token_uri": st.secrets["GOOGLE_TOKEN_URI"],
-                "auth_provider_x509_cert_url": st.secrets["GOOGLE_AUTH_PROVIDER_CERT_URL"],
-                "client_x509_cert_url": st.secrets["GOOGLE_CLIENT_CERT_URL"],
-                "universe_domain": st.secrets.get("GOOGLE_UNIVERSE_DOMAIN", "googleapis.com")
-            }
-            spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"]
-        else:
-            # We're running locally, use environment variables
-            credentials_info = {
-                "type": os.getenv('GOOGLE_TYPE'),
-                "project_id": os.getenv('GOOGLE_PROJECT_ID'),
-                "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID'),
-                "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
-                "client_email": os.getenv('GOOGLE_CLIENT_EMAIL'),
-                "client_id": os.getenv('GOOGLE_CLIENT_ID'),
-                "auth_uri": os.getenv('GOOGLE_AUTH_URI'),
-                "token_uri": os.getenv('GOOGLE_TOKEN_URI'),
-                "auth_provider_x509_cert_url": os.getenv('GOOGLE_AUTH_PROVIDER_CERT_URL'),
-                "client_x509_cert_url": os.getenv('GOOGLE_CLIENT_CERT_URL'),
-                "universe_domain": os.getenv('GOOGLE_UNIVERSE_DOMAIN', "googleapis.com")
-            }
-            spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-
-        if not spreadsheet_id:
-            raise Exception("Missing GOOGLE_SHEETS_SPREADSHEET_ID in configuration")
-            
-        # Clean up private key if needed (replace escaped newlines)
-        if credentials_info["private_key"] and "\\n" in credentials_info["private_key"]:
-            credentials_info["private_key"] = credentials_info["private_key"].replace("\\n", "\n")
+        # Get path to credentials file in the same directory as app.py
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        credentials_path = os.path.join(current_dir, 'credentials1.json')  # Changed to credentials1.json
+        
+        if not os.path.exists(credentials_path):
+            raise Exception(f"Credentials file not found at {credentials_path}")
             
         # Validate required fields
         required_fields = ["type", "project_id", "private_key_id", "private_key", "client_email"]
@@ -79,9 +45,8 @@ def get_or_create_student_sheet(student_name: str) -> gspread.Worksheet:
     try:
         client = get_google_sheets_client()
         
-        # Use the specific spreadsheet ID from secrets or env
-        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        spreadsheet = client.open_by_key(spreadsheet_id)
+        # Use the specific spreadsheet ID
+        spreadsheet = client.open_by_key('1XsVFDulZvVm48TufEaVoNMkEj6-wA583lIuQz5odDiM')
         
         # Try to get the Teacher worksheet
         try:
@@ -110,9 +75,7 @@ def get_syllabus_sheet() -> gspread.Worksheet:
     """Get or create the syllabus worksheet"""
     try:
         client = get_google_sheets_client()
-        # Use spreadsheet ID from secrets or env
-        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        spreadsheet = client.open_by_key(spreadsheet_id)
+        spreadsheet = client.open_by_key('1XsVFDulZvVm48TufEaVoNMkEj6-wA583lIuQz5odDiM')
         
         try:
             worksheet = spreadsheet.worksheet('Syllabus')
@@ -366,160 +329,3 @@ def save_analysis_to_sheets(student_name: str, analysis_results: Dict[str, Any])
         
     except Exception as e:
         raise Exception(f"Error saving analysis to sheets: {str(e)}")
-
-def get_or_create_subject_sheet(subject: str) -> gspread.Worksheet:
-    """Get or create a sheet for a specific subject"""
-    try:
-        client = get_google_sheets_client()
-        # Use spreadsheet ID from secrets or env
-        spreadsheet_id = st.secrets["GOOGLE_SHEETS_SPREADSHEET_ID"] if hasattr(st, 'secrets') else os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        spreadsheet = client.open_by_key(spreadsheet_id)
-        
-        # Try to get the subject worksheet
-        try:
-            worksheet = spreadsheet.worksheet(subject)
-        except gspread.WorksheetNotFound:
-            # Create subject worksheet if it doesn't exist
-            worksheet = spreadsheet.add_worksheet(
-                title=subject,
-                rows=1000,
-                cols=16  # Added column for roll number
-            )
-            # Set up headers for comprehensive student tracking
-            headers = [
-                'Date',
-                'Student Name',
-                'Roll Number',  # New column
-                'Assignment Title',
-                'Grade',
-                'Percentage',
-                'Summary',
-                'Strengths',
-                'Areas for Improvement',
-                'Key Topics Mastered',
-                'Topics Needing Work',
-                'Teacher Comments',
-                'AI Suggestions',
-                'Previous Performance Trend',
-                'Recommended Resources',
-                'Notes'
-            ]
-            worksheet.update('A1:P1', [headers])
-            
-            # Format header row
-            worksheet.format('A1:P1', {
-                "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
-                "horizontalAlignment": "CENTER",
-                "textFormat": {"bold": True}
-            })
-            
-            # Set column widths using resize_column
-            try:
-                worksheet.resize(cols=16)  # Ensure we have enough columns
-                # Set specific column widths (pixel values are approximate)
-                col_widths = {
-                    'B': 250,  # Student Name
-                    'C': 150,  # Roll Number
-                    'D': 300,  # Assignment Title
-                    'G': 400,  # Summary
-                    'H': 300,  # Strengths
-                    'I': 300   # Areas for Improvement
-                }
-                
-                for col, width in col_widths.items():
-                    col_index = ord(col) - ord('A') + 1
-                    worksheet.update_column_properties(col_index, {
-                        "pixelSize": width
-                    })
-            except Exception as e:
-                print(f"Warning: Could not set column widths: {str(e)}")
-                # Continue even if column resizing fails
-            
-        return worksheet
-        
-    except Exception as e:
-        raise Exception(f"Error accessing Google Sheets for subject {subject}: {str(e)}")
-
-def save_grading_result(
-    student_name: str,
-    roll_number: str,
-    subject: str,
-    grading_data: Dict[str, Any],
-    assignment_title: str
-) -> bool:
-    """Save assignment grading results to subject-specific sheet"""
-    try:
-        worksheet = get_or_create_subject_sheet(subject)
-        
-        # Get student's previous performance data
-        previous_data = get_student_subject_history(student_name, subject)
-        performance_trend = analyze_performance_trend(previous_data) if not previous_data.empty else "First submission"
-        
-        # Prepare row data
-        row_data = [
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            student_name,
-            roll_number,
-            assignment_title,
-            grading_data.get('grade', 'N/A'),
-            grading_data.get('percentage', '0%'),
-            grading_data.get('summary', 'No summary available'),
-            ', '.join([s for s in grading_data.get('strengths', []) if s]),
-            ', '.join([i for i in grading_data.get('improvements', []) if i]),
-            ', '.join([q['question_text'] for q in grading_data.get('questions', []) 
-                      if q.get('evaluation', {}).get('correctness') == 'correct']),
-            ', '.join([q['question_text'] for q in grading_data.get('questions', []) 
-                      if q.get('evaluation', {}).get('correctness') == 'incorrect']),
-            '',  # Teacher comments (blank initially)
-            ', '.join(grading_data.get('improvement_plan', {}).get('recommended_practice', [])),
-            performance_trend,
-            ', '.join(grading_data.get('improvement_plan', {}).get('resources', [])),
-            ''   # Notes (blank initially)
-        ]
-        
-        # Append new row
-        worksheet.append_row(row_data)
-        return True
-        
-    except Exception as e:
-        raise Exception(f"Error saving grading results to sheets: {str(e)}")
-
-def get_student_subject_history(student_name: str, subject: str) -> pd.DataFrame:
-    """Retrieve student's historical data for a specific subject"""
-    try:
-        worksheet = get_or_create_subject_sheet(subject)
-        records = worksheet.get_all_records()
-        df = pd.DataFrame(records)
-        if not df.empty:
-            # Filter by both student name and roll number if available
-            return df[df['Student Name'] == student_name]
-        return df
-    except Exception as e:
-        raise Exception(f"Error retrieving student subject history: {str(e)}")
-
-def analyze_performance_trend(history_df: pd.DataFrame) -> str:
-    """Analyze student's performance trend from historical data"""
-    if history_df.empty:
-        return "No previous data"
-        
-    try:
-        # Convert percentage strings to float values
-        percentages = history_df['Percentage'].str.rstrip('%').astype(float)
-        
-        if len(percentages) < 2:
-            return "Not enough data for trend analysis"
-            
-        # Calculate trend
-        recent_avg = percentages.tail(2).mean()
-        older_avg = percentages.head(len(percentages) - 2).mean() if len(percentages) > 2 else percentages.iloc[0]
-        
-        diff = recent_avg - older_avg
-        if diff > 5:
-            return "Improving"
-        elif diff < -5:
-            return "Declining"
-        else:
-            return "Stable"
-            
-    except Exception:
-        return "Unable to calculate trend"
